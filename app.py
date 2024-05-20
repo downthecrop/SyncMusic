@@ -1,4 +1,4 @@
-﻿from flask import Flask, request, Response, render_template, jsonify
+﻿from flask import Flask, request, Response, render_template, jsonify, send_from_directory
 from flask_socketio import SocketIO, emit
 import requests
 from selenium import webdriver
@@ -11,6 +11,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 import math
 import sqlite3
 import os
+import time
 
 app = Flask(__name__)
 socketio = SocketIO(app)
@@ -18,22 +19,15 @@ socketio = SocketIO(app)
 shared_folder_url = "https://ln5.sync.com/dl/a1c3340a0/f9gaxei5-da69twwu-3wxx9hay-8yxcnu79"
 driver = None
 max_items_to_collect = 100
+download_directory = "downloads"
+
+if not os.path.exists(download_directory):
+    os.makedirs(download_directory)
 
 class SongInfo:
     def __init__(self, name, page):
         self.name = name
         self.page = page
-
-def initialize_driver():
-    global driver
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--mute-audio")
-    
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
-    driver.get(shared_folder_url)
 
 def initialize_database():
     conn = sqlite3.connect('songs.db')
@@ -51,6 +45,7 @@ def initialize_database():
 def fetch_total_items():
     global driver
     try:
+        driver.get(shared_folder_url)
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "sync-display-pagination"))
         )
@@ -121,6 +116,41 @@ def gather_all_song_names():
 
     conn.close()
 
+def initialize_driver():
+    global driver
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--mute-audio")
+    prefs = {
+        "download.default_directory": os.path.abspath(download_directory),
+        "download.prompt_for_download": False,
+        "download.directory_upgrade": True,
+        "safebrowsing.enabled": True
+    }
+    chrome_options.add_experimental_option("prefs", prefs)
+    
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+
+def wait_for_downloads(download_dir):
+    while any([filename.endswith('.crdownload') for filename in os.listdir(download_dir)]):
+        time.sleep(1)
+
+def download_m4a(file_name):
+    global driver
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "sync-preview-menu[class='hidden-xs'] a[class='showhand tool syncblue']"))
+    )
+    dlButton = driver.find_element(By.CSS_SELECTOR, "sync-preview-menu[class='hidden-xs'] a[class='showhand tool syncblue']")
+    time.sleep(1)
+    dlButton.click()
+    time.sleep(1)
+    wait_for_downloads(download_directory)
+    file_path = os.path.join(download_directory, file_name)
+    time.sleep(1)
+    return file_path
+
 def get_song_url(song_index, callback):
     global driver
     conn = sqlite3.connect('songs.db')
@@ -153,12 +183,16 @@ def get_song_url(song_index, callback):
                 driver.execute_script("arguments[0].scrollIntoView();", file_name_element)
                 file_name_element.click()
                 
-                WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.TAG_NAME, "video"))
-                )
+                if song_info.name.lower().endswith('.mp3'):
+                    WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.TAG_NAME, "video"))
+                    )
+                    
+                    video_element = driver.find_element(By.TAG_NAME, "video")
+                    song_url = video_element.get_attribute("src")
                 
-                video_element = driver.find_element(By.TAG_NAME, "video")
-                song_url = video_element.get_attribute("src")
+                elif song_info.name.lower().endswith('.m4a'):
+                    song_url = download_m4a(song_info.name)
                 
                 driver.execute_script("window.history.go(-1)")
                 
@@ -191,7 +225,11 @@ def stream():
     url = request.args.get('url')
     if not url:
         return "URL parameter is missing", 400
-    
+
+    if url.startswith('/downloads/') and url.endswith('.m4a'):
+        filename = os.path.basename(url)
+        return send_from_directory(directory=download_directory, path=download_directory, filename=filename, as_attachment=False, mimetype='audio/mp4')
+
     def generate():
         with requests.get(url, stream=True) as r:
             total_size = int(r.headers.get('Content-Length', 0))
@@ -217,11 +255,23 @@ def stream():
 
     return generate()
 
+
+
+@app.route('/downloads/<filename>')
+def serve_file(filename):
+    directory = os.path.join(app.root_path, 'downloads')
+    return send_from_directory(directory, filename)
+
+
 def background_task(song_index):
     def callback(song_url):
+        if song_url and song_url.endswith('.m4a'):
+            song_url = f"http://localhost:5000/downloads/{os.path.basename(song_url)}"
         socketio.emit('play_song', {'url': song_url})
     
     get_song_url(song_index, callback)
+
+
 
 @socketio.on('play_song')
 def handle_play_song(data):
