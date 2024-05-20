@@ -223,19 +223,21 @@ def songs():
 @app.route('/stream')
 def stream():
     url = request.args.get('url')
+    format = 'audio/mpeg'
     if not url:
         return "URL parameter is missing", 400
+    
+    print(f"url requested: {url}")
 
-    if url.startswith('/downloads/') and url.endswith('.m4a'):
-        filename = os.path.basename(url)
-        return send_from_directory(directory=download_directory, path=download_directory, filename=filename, as_attachment=False, mimetype='audio/mp4')
+    if url.endswith('.m4a'):
+        format = 'audio/mp4'
 
     def generate():
         with requests.get(url, stream=True) as r:
             total_size = int(r.headers.get('Content-Length', 0))
             range_header = request.headers.get('Range', None)
             if not range_header:
-                headers = {'Content-Type': 'audio/mpeg'}
+                headers = {'Content-Type': format}
                 return Response(r.iter_content(chunk_size=1024), headers=headers)
             
             start, end = range_header.replace('bytes=', '').split('-')
@@ -244,7 +246,7 @@ def stream():
             length = end - start + 1
             
             headers = {
-                'Content-Type': 'audio/mpeg',
+                'Content-Type': format,
                 'Content-Range': f'bytes {start}-{end}/{total_size}',
                 'Accept-Ranges': 'bytes',
                 'Content-Length': str(length)
