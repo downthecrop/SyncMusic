@@ -1,0 +1,52 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Music Streamer</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Music Streamer</h1>
+        <ul id="songs-list" class="list-group">
+        </ul>
+        <audio id="audio-player" controls style="width: 100%; margin-top: 20px;">
+            Your browser does not support the audio element.
+        </audio>
+    </div>
+    
+    <script>
+        $(document).ready(function() {
+            // Fetch the list of songs
+            $.get('/songs', function(data) {
+                var songs = data.songs;
+                var songsList = $('#songs-list');
+                songs.forEach(function(song) {
+                    songsList.append('<li class="list-group-item"><a href="#" class="play-song" data-index="' + song.index + '">' + song.name + '</a></li>');
+                });
+            });
+
+            var socket = io.connect('http://' + document.domain + ':' + location.port);
+
+            socket.on('connect', function() {
+                console.log('Connected to server');  // Debug connection
+            });
+
+            // Play the selected song
+            $(document).on('click', '.play-song', function(e) {
+                e.preventDefault();
+                var songIndex = $(this).data('index');
+                console.log('Emitting play_song event for index ' + songIndex);  // Debug event emission
+                socket.emit('play_song', { index: songIndex });
+            });
+
+            socket.on('play_song', function(data) {
+                var audioPlayer = $('#audio-player');
+                audioPlayer.attr('src', '/stream?url=' + encodeURIComponent(data.url));
+                audioPlayer[0].play();
+            });
+        });
+    </script>
+</body>
+</html>
