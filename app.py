@@ -2,8 +2,13 @@
 from flask_socketio import SocketIO, emit
 import requests
 import os
+from mutagen import File
+from mutagen.mp4 import MP4, MP4Cover
+from mutagen.mp3 import MP3
+from mutagen.id3 import ID3, TIT2, TALB, TPE1, TDRC
+from io import BytesIO
 
-from database import initialize_database, get_all_songs, get_song_by_index
+from database import initialize_database, get_all_songs
 from selenium_handler import initialize_driver, gather_all_song_names, get_song_url
 
 app = Flask(__name__)
@@ -34,9 +39,44 @@ def stream():
         with requests.get(url, stream=True) as r:
             total_size = int(r.headers.get('Content-Length', 0))
             range_header = request.headers.get('Range', None)
+            
+            # Download the file to extract metadata
+            temp_file = BytesIO()
+            for chunk in r.iter_content(chunk_size=1024):
+                temp_file.write(chunk)
+            
+            temp_file.seek(0)
+            audio_file = File(temp_file)
+
+            if isinstance(audio_file, MP3):
+                title = audio_file.tags.get('TIT2', 'Unknown Title').text[0] if 'TIT2' in audio_file else 'Unknown Title'
+                album = audio_file.tags.get('TALB', 'Unknown Album').text[0] if 'TALB' in audio_file else 'Unknown Album'
+                artist = audio_file.tags.get('TPE1', 'Unknown Artist').text[0] if 'TPE1' in audio_file else 'Unknown Artist'
+                year = audio_file.tags.get('TDRC', 'Unknown Year').text[0] if 'TDRC' in audio_file else 'Unknown Year'
+            elif isinstance(audio_file, MP4):
+                title = audio_file.tags.get('\xa9nam', ['Unknown Title'])[0]
+                album = audio_file.tags.get('\xa9alb', ['Unknown Album'])[0]
+                artist = audio_file.tags.get('\xa9ART', ['Unknown Artist'])[0]
+                year = audio_file.tags.get('\xa9day', ['Unknown Year'])[0]
+            else:
+                title, album, artist, year = 'Unknown Title', 'Unknown Album', 'Unknown Artist', 'Unknown Year'
+
+            metadata = {
+                'title': title,
+                'album': album,
+                'artist': artist,
+                'year': year
+            }
+
             if not range_header:
-                headers = {'Content-Type': format}
-                return Response(r.iter_content(chunk_size=1024), headers=headers)
+                headers = {
+                    'Content-Type': format,
+                    'X-Metadata-Title': metadata['title'],
+                    'X-Metadata-Album': metadata['album'],
+                    'X-Metadata-Artist': metadata['artist'],
+                    'X-Metadata-Year': metadata['year']
+                }
+                return Response(temp_file.getvalue(), headers=headers)
             
             start, end = range_header.replace('bytes=', '').split('-')
             start = int(start)
@@ -47,11 +87,18 @@ def stream():
                 'Content-Type': format,
                 'Content-Range': f'bytes {start}-{end}/{total_size}',
                 'Accept-Ranges': 'bytes',
-                'Content-Length': str(length)
+                'Content-Length': str(length),
+                'X-Metadata-Title': metadata['title'],
+                'X-Metadata-Album': metadata['album'],
+                'X-Metadata-Artist': metadata['artist'],
+                'X-Metadata-Year': metadata['year']
             }
+
+            print("Sending Headers")
+            print(headers)
             
-            r = requests.get(url, headers={'Range': f'bytes={start}-{end}'}, stream=True)
-            return Response(r.iter_content(chunk_size=1024), headers=headers, status=206)
+            temp_file.seek(start)
+            return Response(temp_file.read(length), headers=headers, status=206)
 
     return generate()
 
@@ -62,7 +109,7 @@ def serve_file(filename):
 
 def background_task(song_index):
     def callback(song_url):
-        if song_url and song_url.endswith('.m4a'):
+        if song_url:
             song_url = f"http://localhost:5000/downloads/{os.path.basename(song_url)}"
         socketio.emit('play_song', {'url': song_url})
     

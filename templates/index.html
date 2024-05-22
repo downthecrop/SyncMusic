@@ -108,10 +108,12 @@
     <div class="audio-player-container">
         <div class="audio-player">
             <div class="audio-info">
-                <img src="https://pbs.twimg.com/media/FPx0VtLX0AcOSK3.jpg:large" alt="Album Cover" class="cover">
+                <img id="album-cover" src="https://pbs.twimg.com/media/FPx0VtLX0AcOSK3.jpg:large" alt="Album Cover" class="cover">
                 <div class="track-info">
-                    <span class="track-title">Domestic Sweater</span>
-                    <span class="track-artist">Wonderl</span>
+                    <span id="track-title" class="track-title">Domestic Sweater</span>
+                    <span id="track-artist" class="track-artist">Wonderl</span>
+                    <span id="track-album" class="track-album">Album</span>
+                    <span id="track-year" class="track-year">Year</span>
                 </div>
             </div>
             <div class="audio-controls">
@@ -146,10 +148,17 @@
             });
 
             socket.on('play_song', function (data) {
-                console.log("trying to play",data.url)
+                console.log("trying to play", data.url);
                 var audioPlayer = document.getElementById('audio-player');
                 audioPlayer.src = '/stream?url=' + encodeURIComponent(data.url);
                 audioPlayer.play();
+                
+                fetch(audioPlayer.src, { method: 'HEAD' }).then(response => {
+                    document.getElementById('track-title').textContent = response.headers.get('X-Metadata-Title') || 'Unknown Title';
+                    document.getElementById('track-artist').textContent = response.headers.get('X-Metadata-Artist') || 'Unknown Artist';
+                    document.getElementById('track-album').textContent = response.headers.get('X-Metadata-Album') || 'Unknown Album';
+                    document.getElementById('track-year').textContent = response.headers.get('X-Metadata-Year') || 'Unknown Year';
+                });
             });
         });
 

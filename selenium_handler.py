@@ -104,6 +104,7 @@ def gather_all_song_names():
         print(f"Indexing page {page}: total files collected {song_count}")
 
 def wait_for_downloads(download_dir):
+    time.sleep(2)
     while any([filename.endswith('.crdownload') for filename in os.listdir(download_dir)]):
         time.sleep(1)
 
@@ -113,13 +114,22 @@ def download_m4a(file_name):
         EC.presence_of_element_located((By.CSS_SELECTOR, "sync-preview-menu[class='hidden-xs'] a[class='showhand tool syncblue']"))
     )
     dlButton = driver.find_element(By.CSS_SELECTOR, "sync-preview-menu[class='hidden-xs'] a[class='showhand tool syncblue']")
-    time.sleep(1)
     dlButton.click()
-    time.sleep(1)
     wait_for_downloads(download_directory)
     file_path = os.path.join(download_directory, file_name)
-    time.sleep(1)
     return file_path
+
+def download_mp3(file_name):
+    global driver
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "div[class='col-md-4 col-lg-3'] a[class='showhand tool syncblue']"))
+    )
+    dlButton = driver.find_element(By.CSS_SELECTOR, "div[class='col-md-4 col-lg-3'] a[class='showhand tool syncblue']")
+    dlButton.click()
+    wait_for_downloads(download_directory)
+    file_path = os.path.join(download_directory, file_name)
+    return file_path
+
 
 def get_song_url(song_index, callback):
     global driver
@@ -147,21 +157,10 @@ def get_song_url(song_index, callback):
                 file_name_element.click()
                 
                 if song_info.name.lower().endswith('.mp3'):
-                    WebDriverWait(driver, 10).until(
-                        EC.presence_of_element_located((By.TAG_NAME, "video"))
-                    )
-                    
-                    video_element = driver.find_element(By.TAG_NAME, "video")
-                    song_url = video_element.get_attribute("src")
+                    song_url = download_mp3(song_info.name)
                 
                 elif song_info.name.lower().endswith('.m4a'):
                     song_url = download_m4a(song_info.name)
-                
-                driver.execute_script("window.history.go(-1)")
-                
-                WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.CLASS_NAME, "list-table"))
-                )
                 break
     except Exception as e:
         print(f"An error occurred while getting song URL: {e}")
