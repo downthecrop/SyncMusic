@@ -5,25 +5,82 @@
     <title>Music Streamer</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
     <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO" crossorigin="anonymous"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"
+        integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO"
+        crossorigin="anonymous"></script>
     <style>
-        #songs-list {
-            max-height: 400px;
-            overflow-y: auto;
-            margin-bottom: 20px;
-        }
-
         body {
             margin: 0;
             padding: 0;
             font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: #B3B3B3;
+        }
+
+        .container {
+            margin: initial;
+            width: initial;
+            max-width: initial;
+        }
+
+        @media (min-width: 1200px) {
+            .container {
+                margin: initial;
+                width: initial;
+                max-width: initial;
+            }
+        }
+
+        @media (min-width: 992px) {
+            .container {
+                margin: initial;
+                width: initial;
+                max-width: initial;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .container {
+                margin: initial;
+                width: initial;
+                max-width: initial;
+            }
+        }
+
+        @media (min-width: 576px) {
+            .container {
+                margin: initial;
+                width: initial;
+                max-width: initial;
+            }
+        }
+
+
+        h1 {
+            color: #fff;
+        }
+
+        #songs-list {
+            overflow-y: auto;
+            margin-bottom: 150px;
+        }
+
+        .list-group-item {
+            background-color: #282828;
+            color: #B3B3B3;
+            border: none;
+        }
+
+        .list-group-item:hover {
+            background-color: #1DB954;
+            color: #fff;
         }
 
         .audio-player-container {
             position: fixed;
             bottom: 0;
             width: 100%;
-            background-color: #222;
+            background-color: #282828;
             color: #fff;
         }
 
@@ -52,6 +109,13 @@
 
         .track-title {
             font-weight: bold;
+            color: #fff;
+        }
+
+        .track-artist,
+        .track-album,
+        .track-year {
+            color: #B3B3B3;
         }
 
         .audio-controls {
@@ -85,18 +149,66 @@
             appearance: none;
             width: 10px;
             height: 10px;
-            background: #fff;
+            background: #1DB954;
             border-radius: 50%;
         }
 
         #audio-player {
             display: none;
         }
+
+        .nav-sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 250px;
+            height: 100%;
+            background-color: #000;
+            padding-top: 20px;
+            color: #B3B3B3;
+        }
+
+        .nav-sidebar .nav-item {
+            padding: 10px 20px;
+        }
+
+        .nav-sidebar .nav-item:hover {
+            background-color: #1DB954;
+            color: #fff;
+        }
     </style>
 </head>
 
 <body>
-    <div class="container">
+    <div class="nav-sidebar">
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link active" href="#">Home</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#">Browse</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#">Radio</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#">Songs</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#">Albums</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#">Artists</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#">Local Files</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#">New Playlist</a>
+            </li>
+        </ul>
+    </div>
+    <div class="container" style="margin-left: 270px;">
         <h1>Music Streamer</h1>
         <ul id="songs-list" class="list-group">
         </ul>
@@ -108,7 +220,8 @@
     <div class="audio-player-container">
         <div class="audio-player">
             <div class="audio-info">
-                <img id="album-cover" src="https://pbs.twimg.com/media/FPx0VtLX0AcOSK3.jpg:large" alt="Album Cover" class="cover">
+                <img id="album-cover" src="https://pbs.twimg.com/media/FPx0VtLX0AcOSK3.jpg:large" alt="Album Cover"
+                    class="cover">
                 <div class="track-info">
                     <span id="track-title" class="track-title">Domestic Sweater</span>
                     <span id="track-artist" class="track-artist">Wonderl</span>
@@ -152,7 +265,7 @@
                 var audioPlayer = document.getElementById('audio-player');
                 audioPlayer.src = '/stream?url=' + encodeURIComponent(data.url);
                 audioPlayer.play();
-                
+
                 fetch(audioPlayer.src, { method: 'HEAD' }).then(response => {
                     document.getElementById('track-title').textContent = response.headers.get('X-Metadata-Title') || 'Unknown Title';
                     document.getElementById('track-artist').textContent = response.headers.get('X-Metadata-Artist') || 'Unknown Artist';
