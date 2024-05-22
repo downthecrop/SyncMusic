@@ -12,9 +12,10 @@ import math
 import sqlite3
 import os
 import time
+import threading
 
 app = Flask(__name__)
-socketio = SocketIO(app)
+socketio = SocketIO(app, async_mode='threading')
 
 shared_folder_url = "https://ln5.sync.com/dl/a1c3340a0/f9gaxei5-da69twwu-3wxx9hay-8yxcnu79"
 driver = None
@@ -272,7 +273,6 @@ def background_task(song_index):
         socketio.emit('play_song', {'url': song_url})
     
     get_song_url(song_index, callback)
-
 
 
 @socketio.on('play_song')

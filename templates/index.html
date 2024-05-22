@@ -1,52 +1,204 @@
 ﻿<!DOCTYPE html>
 <html>
+
 <head>
     <title>Music Streamer</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
     <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO" crossorigin="anonymous"></script>
+    <style>
+        #songs-list {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        .audio-player-container {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background-color: #222;
+            color: #fff;
+        }
+
+        .audio-player {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+        }
+
+        .audio-info {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+
+        .cover {
+            width: 50px;
+            height: 50px;
+            margin-right: 10px;
+        }
+
+        .track-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .track-title {
+            font-weight: bold;
+        }
+
+        .audio-controls {
+            display: flex;
+            align-items: center;
+            flex: 2;
+        }
+
+        .control-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        #seek-bar,
+        #volume-bar {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 5px;
+            background: #444;
+            margin: 0 10px;
+            cursor: pointer;
+        }
+
+        #seek-bar::-webkit-slider-thumb,
+        #volume-bar::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 10px;
+            height: 10px;
+            background: #fff;
+            border-radius: 50%;
+        }
+
+        #audio-player {
+            display: none;
+        }
+    </style>
 </head>
+
 <body>
     <div class="container">
         <h1>Music Streamer</h1>
         <ul id="songs-list" class="list-group">
         </ul>
-        <audio id="audio-player" controls style="width: 100%; margin-top: 20px;">
+
+        <audio id="audio-player">
             Your browser does not support the audio element.
         </audio>
     </div>
-    
+    <div class="audio-player-container">
+        <div class="audio-player">
+            <div class="audio-info">
+                <img src="https://pbs.twimg.com/media/FPx0VtLX0AcOSK3.jpg:large" alt="Album Cover" class="cover">
+                <div class="track-info">
+                    <span class="track-title">Domestic Sweater</span>
+                    <span class="track-artist">Wonderl</span>
+                </div>
+            </div>
+            <div class="audio-controls">
+                <button id="play-pause-btn" class="control-btn">▶️</button>
+                <input type="range" id="seek-bar" value="0" max="100">
+                <span id="current-time">0:00</span> / <span id="duration">4:25</span>
+                <input type="range" id="volume-bar" value="100" max="100">
+            </div>
+        </div>
+    </div>
     <script>
-        $(document).ready(function() {
-            // Fetch the list of songs
-            $.get('/songs', function(data) {
+        $(document).ready(function () {
+            $.get('/songs', function (data) {
                 var songs = data.songs;
                 var songsList = $('#songs-list');
-                songs.forEach(function(song) {
+                songs.forEach(function (song) {
                     songsList.append('<li class="list-group-item"><a href="#" class="play-song" data-index="' + song.index + '">' + song.name + '</a></li>');
                 });
             });
 
             var socket = io.connect('http://' + document.domain + ':' + location.port);
 
-            socket.on('connect', function() {
-                console.log('Connected to server');  // Debug connection
+            socket.on('connect', function () {
+                console.log('Connected to server');
             });
 
-            // Play the selected song
-            $(document).on('click', '.play-song', function(e) {
+            $(document).on('click', '.play-song', function (e) {
                 e.preventDefault();
                 var songIndex = $(this).data('index');
-                console.log('Emitting play_song event for index ' + songIndex);  // Debug event emission
+                console.log('Emitting play_song event for index ' + songIndex);
                 socket.emit('play_song', { index: songIndex });
             });
 
-            socket.on('play_song', function(data) {
-                var audioPlayer = $('#audio-player');
-                audioPlayer.attr('src', '/stream?url=' + encodeURIComponent(data.url));
-                audioPlayer[0].play();
+            socket.on('play_song', function (data) {
+                console.log("trying to play",data.url)
+                var audioPlayer = document.getElementById('audio-player');
+                audioPlayer.src = '/stream?url=' + encodeURIComponent(data.url);
+                audioPlayer.play();
             });
         });
+
+        const audio = document.getElementById('audio-player');
+        const playPauseBtn = document.getElementById('play-pause-btn');
+        const seekBar = document.getElementById('seek-bar');
+        const volumeBar = document.getElementById('volume-bar');
+        const currentTimeElem = document.getElementById('current-time');
+        const durationElem = document.getElementById('duration');
+
+        playPauseBtn.addEventListener('click', () => {
+            if (audio.paused) {
+                audio.play();
+                playPauseBtn.textContent = '⏸️';
+            } else {
+                audio.pause();
+                playPauseBtn.textContent = '▶️';
+            }
+        });
+
+        audio.addEventListener('timeupdate', () => {
+            if (!isNaN(audio.currentTime) && !isNaN(audio.duration)) {
+                seekBar.value = (audio.currentTime / audio.duration) * 100;
+                currentTimeElem.textContent = formatTime(audio.currentTime);
+            }
+        });
+
+        seekBar.addEventListener('input', () => {
+            if (!isNaN(audio.duration)) {
+                audio.currentTime = (seekBar.value / 100) * audio.duration;
+            }
+        });
+
+        volumeBar.addEventListener('input', () => {
+            audio.volume = volumeBar.value / 100;
+        });
+
+        audio.addEventListener('loadedmetadata', () => {
+            if (!isNaN(audio.duration)) {
+                durationElem.textContent = formatTime(audio.duration);
+            }
+        });
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            seconds = Math.floor(seconds % 60);
+            return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+        }
     </script>
 </body>
+
 </html>
