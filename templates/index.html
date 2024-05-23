@@ -55,7 +55,6 @@
             }
         }
 
-
         h1 {
             color: #fff;
         }
@@ -243,7 +242,12 @@
                 var songs = data.songs;
                 var songsList = $('#songs-list');
                 songs.forEach(function (song) {
-                    songsList.append('<li class="list-group-item"><a href="#" class="play-song" data-index="' + song.index + '">' + song.name + '</a></li>');
+                    songsList.append(
+                        '<li class="list-group-item">' +
+                        '<a href="#" class="play-song" data-index="' + song.index + '">' + song.name + '</a>' +
+                        '<br><small>' + song.path + '</small>' +
+                        '</li>'
+                    );
                 });
             });
 
