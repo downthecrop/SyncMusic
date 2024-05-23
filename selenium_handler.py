@@ -10,7 +10,10 @@ import time
 
 from database import insert_song, get_song_count, get_song_by_index, SongInfo, initialize_database
 
-shared_folder_url = "https://ln5.sync.com/dl/b3a6f5250/x4cguzja-4n3zaxuh-7dyny46b-x2atc84i"
+
+# "https://ln5.sync.com/dl/b3a6f5250/x4cguzja-4n3zaxuh-7dyny46b-x2atc84i" # Full
+# "https://ln5.sync.com/dl/a1c3340a0/f9gaxei5-da69twwu-3wxx9hay-8yxcnu79" # iPhone
+shared_folder_url = "https://ln5.sync.com/dl/a1c3340a0/f9gaxei5-da69twwu-3wxx9hay-8yxcnu79"
 download_directory = "downloads"
 max_items_to_collect = 1000
 driver = None
@@ -29,6 +32,7 @@ def initialize_driver():
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--mute-audio")
+    chrome_options.add_argument("--log-level=3")
     prefs = {
         "download.default_directory": os.path.abspath(download_directory),
         "download.prompt_for_download": False,
@@ -50,49 +54,63 @@ class Item:
 def fetch_items_in_directory(url, remaining_items, current_path):
     global driver
     items = []
+    next_page = True
+    page_number = 0
 
     try:
-        print(f"Navigating to directory: {url}")
-        driver.get(url)
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "list-table"))
-        )
-        
-        rows = driver.find_elements(By.CSS_SELECTOR, "table.list-table tbody tr")
-        
-        for index in range(len(rows)):
-            if remaining_items <= 0:
-                print("Reached max items to collect, breaking.")
-                break
+        while remaining_items > 0 and next_page:
+            current_url = f"{url}?page={page_number}" if page_number > 0 else url
+            print(f"Navigating to directory: {current_url}")
+            driver.get(current_url)
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CLASS_NAME, "list-table"))
+            )
+            
+            rows = driver.find_elements(By.CSS_SELECTOR, "table.list-table tbody tr")
 
-            try:
-                print(f"Fetching row {index + 1} of {len(rows)}")
-                rows = driver.find_elements(By.CSS_SELECTOR, "table.list-table tbody tr")
-                row = rows[index]
-                
-                file_name_element = row.find_element(By.CSS_SELECTOR, "td.table-filename span")
-                file_type_element = row.find_element(By.TAG_NAME, "img")
-                file_name = file_name_element.text
-                file_src = file_type_element.get_attribute("src")
-                
-                print(f"Found file: {file_name}")
-                
-                driver.execute_script("arguments[0].focus();", file_name_element)
-                driver.execute_script("arguments[0].click();", file_name_element)
-                
-                file_url = driver.current_url
-                items.append(Item(file_name, file_src, file_url, current_path))
-                
-                print(f"Fetched file URL: {file_url}")
-                
-                print(f"Reloading directory: {url}")
-                driver.get(url)
-                WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.CLASS_NAME, "list-table"))
-                )
-            except Exception as e:
-                print(f"Error fetching item at index {index}: {e}")
-                continue
+            current_page, max_page = extract_current_and_max_from_pagination(driver)
+
+            print(f"Found {len(rows)} rows on page {page_number} total elements in directory {max_page}")
+
+            for index in range(len(rows)):
+                if remaining_items <= 0:
+                    print("Reached max items to collect, breaking.")
+                    break
+
+                try:
+                    print(f"Fetching row {index + 1} of {len(rows)}")
+                    rows = driver.find_elements(By.CSS_SELECTOR, "table.list-table tbody tr")
+                    row = rows[index]
+                    
+                    file_name_element = row.find_element(By.CSS_SELECTOR, "td.table-filename span")
+                    file_type_element = row.find_element(By.TAG_NAME, "img")
+                    file_name = file_name_element.text
+                    file_src = file_type_element.get_attribute("src")
+                    
+                    print(f"Found file: {file_name}")
+                    
+                    driver.execute_script("arguments[0].focus();", file_name_element)
+                    driver.execute_script("arguments[0].click();", file_name_element)
+                    
+                    file_url = driver.current_url
+                    items.append(Item(file_name, file_src, file_url, current_path))
+                    
+                    print(f"Fetched file URL: {file_url}")
+                    
+                    driver.get(current_url)
+                    WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.CLASS_NAME, "list-table"))
+                    )
+
+                except Exception as e:
+                    print(f"Error fetching item at index {index}: {e}")
+                    continue
+
+            # Check if there are more pages
+            current_page, max_page = extract_current_and_max_from_pagination(driver)
+            next_page = current_page < max_page if current_page and max_page else False
+            page_number += 1
+
     except Exception as e:
         print(f"An error occurred while fetching items in directory: {e}")
 
@@ -160,6 +178,26 @@ def wait_for_downloads(download_dir):
     while any([filename.endswith('.crdownload') for filename in os.listdir(download_dir)]):
         time.sleep(1)
     print("Downloads complete.")
+
+def extract_current_and_max_from_pagination(driver):
+    try:
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "sync-display-pagination"))
+        )
+        
+        pagination_element = driver.find_element(By.CSS_SELECTOR, "sync-display-pagination")
+        spans = pagination_element.find_elements(By.CSS_SELECTOR, "span span")
+        
+        numbers = [span.text for span in spans if span.text.isdigit()]
+        
+        max_value = numbers[-1] if numbers else None
+        current = numbers[-2] if len(numbers) > 1 else max_value
+        
+        return int(current), int(max_value)
+    
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None, None
 
 def download_m4a(file_name):
     global driver
