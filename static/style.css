@@ -1,0 +1,166 @@
+﻿ body {
+     margin: 0;
+     padding: 0;
+     font-family: Arial, sans-serif;
+     background-color: #121212;
+     color: #B3B3B3;
+ }
+
+ .container {
+     margin: initial;
+     width: initial;
+     max-width: initial;
+ }
+
+ @media (min-width: 1200px) {
+     .container {
+         margin: initial;
+         width: initial;
+         max-width: initial;
+     }
+ }
+
+ @media (min-width: 992px) {
+     .container {
+         margin: initial;
+         width: initial;
+         max-width: initial;
+     }
+ }
+
+ @media (min-width: 768px) {
+     .container {
+         margin: initial;
+         width: initial;
+         max-width: initial;
+     }
+ }
+
+ @media (min-width: 576px) {
+     .container {
+         margin: initial;
+         width: initial;
+         max-width: initial;
+     }
+ }
+
+ h1 {
+     color: #fff;
+ }
+
+ #songs-list {
+     overflow-y: auto;
+     margin-bottom: 150px;
+ }
+
+ .list-group-item {
+     background-color: #282828;
+     color: #B3B3B3;
+     border: none;
+ }
+
+ .list-group-item:hover {
+     background-color: #1DB954;
+     color: #fff;
+ }
+
+ .audio-player-container {
+     position: fixed;
+     bottom: 0;
+     width: 100%;
+     background-color: #282828;
+     color: #fff;
+ }
+
+ .audio-player {
+     display: flex;
+     align-items: center;
+     padding: 10px;
+ }
+
+ .audio-info {
+     display: flex;
+     align-items: center;
+     flex: 1;
+ }
+
+ .cover {
+     width: 50px;
+     height: 50px;
+     margin-right: 10px;
+ }
+
+ .track-info {
+     display: flex;
+     flex-direction: column;
+ }
+
+ .track-title {
+     font-weight: bold;
+     color: #fff;
+ }
+
+ .track-artist,
+ .track-album,
+ .track-year {
+     color: #B3B3B3;
+ }
+
+ .audio-controls {
+     display: flex;
+     align-items: center;
+     flex: 2;
+ }
+
+ .control-btn {
+     background: none;
+     border: none;
+     color: #fff;
+     font-size: 20px;
+     cursor: pointer;
+     margin-right: 10px;
+ }
+
+ #seek-bar,
+ #volume-bar {
+     -webkit-appearance: none;
+     appearance: none;
+     height: 5px;
+     background: #444;
+     margin: 0 10px;
+     cursor: pointer;
+ }
+
+ #seek-bar::-webkit-slider-thumb,
+ #volume-bar::-webkit-slider-thumb {
+     -webkit-appearance: none;
+     appearance: none;
+     width: 10px;
+     height: 10px;
+     background: #1DB954;
+     border-radius: 50%;
+ }
+
+ #audio-player {
+     display: none;
+ }
+
+ .nav-sidebar {
+     position: fixed;
+     top: 0;
+     left: 0;
+     width: 250px;
+     height: 100%;
+     background-color: #000;
+     padding-top: 20px;
+     color: #B3B3B3;
+ }
+
+ .nav-sidebar .nav-item {
+     padding: 10px 20px;
+ }
+
+ .nav-sidebar .nav-item:hover {
+     background-color: #1DB954;
+     color: #fff;
+ }

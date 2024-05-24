@@ -8,202 +8,42 @@
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"
         integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO"
         crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="static/style.css">
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
-            background-color: #121212;
-            color: #B3B3B3;
-        }
-
-        .container {
-            margin: initial;
-            width: initial;
-            max-width: initial;
-        }
-
-        @media (min-width: 1200px) {
-            .container {
-                margin: initial;
-                width: initial;
-                max-width: initial;
-            }
-        }
-
-        @media (min-width: 992px) {
-            .container {
-                margin: initial;
-                width: initial;
-                max-width: initial;
-            }
-        }
-
-        @media (min-width: 768px) {
-            .container {
-                margin: initial;
-                width: initial;
-                max-width: initial;
-            }
-        }
-
-        @media (min-width: 576px) {
-            .container {
-                margin: initial;
-                width: initial;
-                max-width: initial;
-            }
-        }
-
-        h1 {
-            color: #fff;
-        }
-
-        #songs-list {
-            overflow-y: auto;
-            margin-bottom: 150px;
-        }
-
-        .list-group-item {
-            background-color: #282828;
-            color: #B3B3B3;
-            border: none;
-        }
-
-        .list-group-item:hover {
-            background-color: #1DB954;
-            color: #fff;
-        }
-
-        .audio-player-container {
-            position: fixed;
-            bottom: 0;
-            width: 100%;
-            background-color: #282828;
-            color: #fff;
-        }
-
-        .audio-player {
-            display: flex;
-            align-items: center;
-            padding: 10px;
-        }
-
-        .audio-info {
-            display: flex;
-            align-items: center;
-            flex: 1;
-        }
-
-        .cover {
-            width: 50px;
-            height: 50px;
-            margin-right: 10px;
-        }
-
-        .track-info {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .track-title {
-            font-weight: bold;
-            color: #fff;
-        }
-
-        .track-artist,
-        .track-album,
-        .track-year {
-            color: #B3B3B3;
-        }
-
-        .audio-controls {
-            display: flex;
-            align-items: center;
-            flex: 2;
-        }
-
-        .control-btn {
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 20px;
-            cursor: pointer;
-            margin-right: 10px;
-        }
-
-        #seek-bar,
-        #volume-bar {
-            -webkit-appearance: none;
-            appearance: none;
-            height: 5px;
-            background: #444;
-            margin: 0 10px;
-            cursor: pointer;
-        }
-
-        #seek-bar::-webkit-slider-thumb,
-        #volume-bar::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 10px;
-            height: 10px;
-            background: #1DB954;
-            border-radius: 50%;
-        }
-
-        #audio-player {
-            display: none;
-        }
-
-        .nav-sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 250px;
-            height: 100%;
-            background-color: #000;
-            padding-top: 20px;
-            color: #B3B3B3;
-        }
-
-        .nav-sidebar .nav-item {
-            padding: 10px 20px;
-        }
-
-        .nav-sidebar .nav-item:hover {
-            background-color: #1DB954;
-            color: #fff;
+        .nav-link .fas {
+            margin-right: 8px;
         }
     </style>
+
 </head>
 
 <body>
     <div class="nav-sidebar">
         <ul class="nav flex-column">
             <li class="nav-item">
-                <a class="nav-link active" href="#">Home</a>
+                <a class="nav-link active" href="#"><i class="fas fa-home"></i> Home</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#">Browse</a>
+                <a class="nav-link" href="#"><i class="fas fa-search"></i> Browse</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#">Radio</a>
+                <a class="nav-link" href="#"><i class="fas fa-broadcast-tower"></i> Radio</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#">Songs</a>
+                <a class="nav-link" href="#"><i class="fas fa-music"></i> Songs</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#">Albums</a>
+                <a class="nav-link" href="#"><i class="fas fa-record-vinyl"></i> Albums</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#">Artists</a>
+                <a class="nav-link" href="#"><i class="fas fa-user"></i> Artists</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#">Local Files</a>
+                <a class="nav-link" href="#"><i class="fas fa-folder-open"></i> Local Files</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#">New Playlist</a>
+                <a class="nav-link" href="#"><i class="fas fa-plus"></i> New Playlist</a>
             </li>
         </ul>
     </div>
@@ -236,95 +76,6 @@
             </div>
         </div>
     </div>
-    <script>
-        $(document).ready(function () {
-            $.get('/songs', function (data) {
-                var songs = data.songs;
-                var songsList = $('#songs-list');
-                songs.forEach(function (song) {
-                    songsList.append(
-                        '<li class="list-group-item">' +
-                        '<a href="#" class="play-song" data-index="' + song.index + '">' + song.name + '</a>' +
-                        '<br><small>' + song.path + '</small>' +
-                        '</li>'
-                    );
-                });
-            });
-
-            var socket = io.connect('http://' + document.domain + ':' + location.port);
-
-            socket.on('connect', function () {
-                console.log('Connected to server');
-            });
-
-            $(document).on('click', '.play-song', function (e) {
-                e.preventDefault();
-                var songIndex = $(this).data('index');
-                console.log('Emitting play_song event for index ' + songIndex);
-                socket.emit('play_song', { index: songIndex });
-            });
-
-            socket.on('play_song', function (data) {
-                console.log("trying to play", data.url);
-                var audioPlayer = document.getElementById('audio-player');
-                audioPlayer.src = '/stream?url=' + encodeURIComponent(data.url);
-                audioPlayer.play();
-
-                fetch(audioPlayer.src, { method: 'HEAD' }).then(response => {
-                    document.getElementById('track-title').textContent = response.headers.get('X-Metadata-Title') || 'Unknown Title';
-                    document.getElementById('track-artist').textContent = response.headers.get('X-Metadata-Artist') || 'Unknown Artist';
-                    document.getElementById('track-album').textContent = response.headers.get('X-Metadata-Album') || 'Unknown Album';
-                    document.getElementById('track-year').textContent = response.headers.get('X-Metadata-Year') || 'Unknown Year';
-                });
-            });
-        });
-
-        const audio = document.getElementById('audio-player');
-        const playPauseBtn = document.getElementById('play-pause-btn');
-        const seekBar = document.getElementById('seek-bar');
-        const volumeBar = document.getElementById('volume-bar');
-        const currentTimeElem = document.getElementById('current-time');
-        const durationElem = document.getElementById('duration');
-
-        playPauseBtn.addEventListener('click', () => {
-            if (audio.paused) {
-                audio.play();
-                playPauseBtn.textContent = '⏸️';
-            } else {
-                audio.pause();
-                playPauseBtn.textContent = '▶️';
-            }
-        });
-
-        audio.addEventListener('timeupdate', () => {
-            if (!isNaN(audio.currentTime) && !isNaN(audio.duration)) {
-                seekBar.value = (audio.currentTime / audio.duration) * 100;
-                currentTimeElem.textContent = formatTime(audio.currentTime);
-            }
-        });
-
-        seekBar.addEventListener('input', () => {
-            if (!isNaN(audio.duration)) {
-                audio.currentTime = (seekBar.value / 100) * audio.duration;
-            }
-        });
-
-        volumeBar.addEventListener('input', () => {
-            audio.volume = volumeBar.value / 100;
-        });
-
-        audio.addEventListener('loadedmetadata', () => {
-            if (!isNaN(audio.duration)) {
-                durationElem.textContent = formatTime(audio.duration);
-            }
-        });
-
-        function formatTime(seconds) {
-            const minutes = Math.floor(seconds / 60);
-            seconds = Math.floor(seconds % 60);
-            return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-        }
-    </script>
+    <script src="static/script.js"></script>
 </body>
-
 </html>

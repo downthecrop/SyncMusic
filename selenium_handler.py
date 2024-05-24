@@ -55,12 +55,11 @@ def fetch_items_in_directory(url, remaining_items, current_path, stack, driver):
             )
             
             rows = driver.find_elements(By.CSS_SELECTOR, "table.list-table tbody tr")
-            current_page, max_page = extract_current_and_max_from_pagination(driver)
 
             print(f"Found {len(rows)} rows on page {page_number} of directory")
 
             row_indices = list(range(len(rows)))
-            with multiprocessing.Pool(processes=20) as pool:
+            with multiprocessing.Pool(processes=50) as pool:
                 results = pool.map(process_row, [(row_index, current_url, current_path, valid_extensions) for row_index in row_indices])
 
             for result in results:
@@ -80,7 +79,7 @@ def fetch_items_in_directory(url, remaining_items, current_path, stack, driver):
             page_number += 1
 
     except Exception as e:
-        print(f"An error occurred while fetching items in directory: {e}")
+        print(f"An error occurred while fetching items in directory: Path: {current_path} Remaining Items: {remaining_items} URL: {url} Page: {page_number}    {e}")
         print(f"Stacktrace: {e.__traceback__}")
 
     return remaining_items
@@ -177,15 +176,26 @@ def wait_for_downloads(download_dir):
 
 def download_file(file_name, driver):
     print(f"Downloading file: {file_name}")
-    WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, "sync-preview-menu[class='hidden-xs'] a[class='showhand tool syncblue']"))
-    )
-    dlButton = driver.find_element(By.CSS_SELECTOR, "sync-preview-menu[class='hidden-xs'] a[class='showhand tool syncblue']")
-    dlButton.click()
+
+    if(file_name.endswith('.mp3')):
+        # MP3 files have a different page
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "div[class='col-md-4 col-lg-3'] a[class='showhand tool syncblue']"))
+        )
+        dlButton = driver.find_element(By.CSS_SELECTOR, "div[class='col-md-4 col-lg-3'] a[class='showhand tool syncblue']")
+        dlButton.click()
+    else:
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "sync-preview-menu[class='hidden-xs'] a[class='showhand tool syncblue']"))
+        )
+        dlButton = driver.find_element(By.CSS_SELECTOR, "sync-preview-menu[class='hidden-xs'] a[class='showhand tool syncblue']")
+        dlButton.click()
+
     wait_for_downloads(download_directory)
     file_path = os.path.join(download_directory, file_name)
     print(f"Downloaded file to: {file_path}")
     return file_path
+
 
 def get_song_url(song_index, callback):
     print(f"Getting song URL for index: {song_index}")
