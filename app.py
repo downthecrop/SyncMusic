@@ -3,10 +3,12 @@ from flask_socketio import SocketIO, emit
 import requests
 import os
 from mutagen import File
-from mutagen.mp4 import MP4, MP4Cover
+from mutagen.mp4 import MP4
 from mutagen.mp3 import MP3
 from mutagen.id3 import ID3, TIT2, TALB, TPE1, TDRC
+from mutagen.oggopus import OggOpus
 from io import BytesIO
+from urllib.parse import unquote
 
 from database import initialize_database, get_all_songs
 from selenium_handler import initialize_driver, gather_all_song_names, get_song_url
@@ -34,13 +36,16 @@ def stream():
 
     if url.endswith('.m4a'):
         format = 'audio/mp4'
+    elif url.endswith('.opus'):
+        format = 'audio/ogg'
+
+    filename = unquote(os.path.basename(url))
 
     def generate():
         with requests.get(url, stream=True) as r:
             total_size = int(r.headers.get('Content-Length', 0))
             range_header = request.headers.get('Range', None)
             
-            # Download the file to extract metadata
             temp_file = BytesIO()
             for chunk in r.iter_content(chunk_size=1024):
                 temp_file.write(chunk)
@@ -49,17 +54,22 @@ def stream():
             audio_file = File(temp_file)
 
             if isinstance(audio_file, MP3):
-                title = audio_file.tags.get('TIT2', 'Unknown Title').text[0] if 'TIT2' in audio_file else 'Unknown Title'
+                title = audio_file.tags.get('TIT2', filename).text[0] if 'TIT2' in audio_file else filename
                 album = audio_file.tags.get('TALB', 'Unknown Album').text[0] if 'TALB' in audio_file else 'Unknown Album'
                 artist = audio_file.tags.get('TPE1', 'Unknown Artist').text[0] if 'TPE1' in audio_file else 'Unknown Artist'
                 year = audio_file.tags.get('TDRC', 'Unknown Year').text[0] if 'TDRC' in audio_file else 'Unknown Year'
             elif isinstance(audio_file, MP4):
-                title = audio_file.tags.get('\xa9nam', ['Unknown Title'])[0]
+                title = audio_file.tags.get('\xa9nam', [filename])[0]
                 album = audio_file.tags.get('\xa9alb', ['Unknown Album'])[0]
                 artist = audio_file.tags.get('\xa9ART', ['Unknown Artist'])[0]
                 year = audio_file.tags.get('\xa9day', ['Unknown Year'])[0]
+            elif isinstance(audio_file, OggOpus):
+                title = audio_file.get('title', [filename])[0]
+                album = audio_file.get('album', ['Unknown Album'])[0]
+                artist = audio_file.get('artist', ['Unknown Artist'])[0]
+                year = audio_file.get('date', ['Unknown Year'])[0]
             else:
-                title, album, artist, year = 'Unknown Title', 'Unknown Album', 'Unknown Artist', 'Unknown Year'
+                title, album, artist, year = filename, 'Unknown Album', 'Unknown Artist', 'Unknown Year'
 
             metadata = {
                 'title': title,

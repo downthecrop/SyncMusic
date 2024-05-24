@@ -13,12 +13,15 @@ from database import insert_song, get_song_count, get_song_by_index, SongInfo, i
 
 # "https://ln5.sync.com/dl/b3a6f5250/x4cguzja-4n3zaxuh-7dyny46b-x2atc84i" # Full
 # "https://ln5.sync.com/dl/a1c3340a0/f9gaxei5-da69twwu-3wxx9hay-8yxcnu79" # iPhone
-shared_folder_url = "https://ln5.sync.com/dl/a1c3340a0/f9gaxei5-da69twwu-3wxx9hay-8yxcnu79"
+# "https://ln5.sync.com/dl/7c711d450/27qrfauy-xdt5yq3t-hvckrqti-c6vrb47s" # 100+ items
+shared_folder_url = "https://ln5.sync.com/dl/b3a6f5250/x4cguzja-4n3zaxuh-7dyny46b-x2atc84i"
 download_directory = "downloads"
 max_items_to_collect = 1000
 driver = None
 
+
 mime_audio = "images/icons/mime-audio.svg"
+mime_unknown = "images/icons/mime-unknown.svg"
 mime_directory = "images/icons/dir.svg"
 
 if not os.path.exists(download_directory):
@@ -51,11 +54,12 @@ class Item:
         self.url = url
         self.path = path
 
-def fetch_items_in_directory(url, remaining_items, current_path):
+def fetch_items_in_directory(url, remaining_items, current_path, song_data, stack):
     global driver
-    items = []
     next_page = True
     page_number = 0
+
+    valid_extensions = {'.mp3', '.m4a', '.wav', '.opus'}
 
     try:
         while remaining_items > 0 and next_page:
@@ -67,7 +71,6 @@ def fetch_items_in_directory(url, remaining_items, current_path):
             )
             
             rows = driver.find_elements(By.CSS_SELECTOR, "table.list-table tbody tr")
-
             current_page, max_page = extract_current_and_max_from_pagination(driver)
 
             print(f"Found {len(rows)} rows on page {page_number} total elements in directory {max_page}")
@@ -93,10 +96,19 @@ def fetch_items_in_directory(url, remaining_items, current_path):
                     driver.execute_script("arguments[0].click();", file_name_element)
                     
                     file_url = driver.current_url
-                    items.append(Item(file_name, file_src, file_url, current_path))
-                    
-                    print(f"Fetched file URL: {file_url}")
-                    
+
+                    if file_src.endswith(mime_audio) or file_src.endswith(mime_unknown):
+                        if any(file_name.lower().endswith(ext) for ext in valid_extensions):
+                            print(f"Found audio file: {file_name} @ url {file_url}")
+                            song_data.append(SongInfo(name=file_name, page_url=file_url, path="/".join(current_path)))
+                            remaining_items -= 1
+                            if remaining_items <= 0:
+                                print("Reached max items to collect, breaking.")
+                                break
+                    elif file_src.endswith(mime_directory):
+                        print(f"Found directory: {file_name}, adding to stack.")
+                        stack.append((file_url, current_path + [file_name]))
+
                     driver.get(current_url)
                     WebDriverWait(driver, 10).until(
                         EC.presence_of_element_located((By.CLASS_NAME, "list-table"))
@@ -106,7 +118,6 @@ def fetch_items_in_directory(url, remaining_items, current_path):
                     print(f"Error fetching item at index {index}: {e}")
                     continue
 
-            # Check if there are more pages
             current_page, max_page = extract_current_and_max_from_pagination(driver)
             next_page = current_page < max_page if current_page and max_page else False
             page_number += 1
@@ -114,32 +125,16 @@ def fetch_items_in_directory(url, remaining_items, current_path):
     except Exception as e:
         print(f"An error occurred while fetching items in directory: {e}")
 
-    return items
-
 def depth_first_search(url):
     print(f"Starting depth-first search from URL: {url}")
     stack = [(url, [])]
     song_data = []
-    valid_extensions = {'.mp3', '.m4a', '.wav'}
     remaining_items = max_items_to_collect
 
     while stack and remaining_items > 0:
         current_url, current_path = stack.pop()
         print(f"Popped URL from stack: {current_url}")
-        items = fetch_items_in_directory(current_url, remaining_items, current_path)
-
-        for item in items:
-            if item.type.endswith(mime_audio):
-                if any(item.name.lower().endswith(ext) for ext in valid_extensions):
-                    print(f"Found audio file: {item.name}")
-                    song_data.append(SongInfo(name=item.name, page_url=item.url, path="/".join(current_path)))
-                    remaining_items -= 1
-                    if remaining_items <= 0:
-                        print("Reached max items to collect, breaking.")
-                        break
-            elif item.type.endswith(mime_directory):
-                print(f"Found directory: {item.name}, adding to stack.")
-                stack.append((item.url, current_path + [item.name]))
+        fetch_items_in_directory(current_url, remaining_items, current_path, song_data, stack)
 
     return song_data
 
@@ -161,11 +156,7 @@ def get_song_url(song_index, callback):
             EC.presence_of_element_located((By.CLASS_NAME, "showhand"))
         )
         
-        if song_info.name.lower().endswith('.mp3'):
-            song_url = download_mp3(song_info.name)
-        
-        elif song_info.name.lower().endswith('.m4a'):
-            song_url = download_m4a(song_info.name)
+        song_url = download_file(song_info.name)
             
     except Exception as e:
         print(f"An error occurred while getting song URL: {e}")
@@ -199,9 +190,9 @@ def extract_current_and_max_from_pagination(driver):
         print(f"An error occurred: {e}")
         return None, None
 
-def download_m4a(file_name):
+def download_file(file_name):
     global driver
-    print(f"Downloading M4A file: {file_name}")
+    print(f"Downloading file: {file_name}")
     WebDriverWait(driver, 10).until(
         EC.presence_of_element_located((By.CSS_SELECTOR, "sync-preview-menu[class='hidden-xs'] a[class='showhand tool syncblue']"))
     )
@@ -209,20 +200,7 @@ def download_m4a(file_name):
     dlButton.click()
     wait_for_downloads(download_directory)
     file_path = os.path.join(download_directory, file_name)
-    print(f"Downloaded M4A file to: {file_path}")
-    return file_path
-
-def download_mp3(file_name):
-    global driver
-    print(f"Downloading MP3 file: {file_name}")
-    WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, "div[class='col-md-4 col-lg-3'] a[class='showhand tool syncblue']"))
-    )
-    dlButton = driver.find_element(By.CSS_SELECTOR, "div[class='col-md-4 col-lg-3'] a[class='showhand tool syncblue']")
-    dlButton.click()
-    wait_for_downloads(download_directory)
-    file_path = os.path.join(download_directory, file_name)
-    print(f"Downloaded MP3 file to: {file_path}")
+    print(f"Downloaded file to: {file_path}")
     return file_path
 
 def gather_all_song_names():
