@@ -9,7 +9,7 @@ import os
 import time
 from database import insert_song, get_song_count, get_song_by_index, SongInfo, initialize_database
 
-shared_folder_url = "https://ln5.sync.com/dl/b3a6f5250/x4cguzja-4n3zaxuh-7dyny46b-x2atc84i"
+shared_folder_url = "https://ln5.sync.com/dl/eb1076650/dwaa5qe5-dmthb8bm-j2jcjc2c-z4i868ti"
 download_directory = "downloads"
 max_items_to_collect = 100000000000
 
