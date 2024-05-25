@@ -134,6 +134,5 @@ def handle_play_song(data):
 
 if __name__ == '__main__':
     initialize_database()
-    initialize_driver()
     gather_all_song_names()
-    socketio.run(app, debug=True)
+    socketio.run(app, debug=False)

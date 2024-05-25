@@ -7,16 +7,11 @@ from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 import os
 import time
-import multiprocessing
 from database import insert_song, get_song_count, get_song_by_index, SongInfo, initialize_database
 
 shared_folder_url = "https://ln5.sync.com/dl/b3a6f5250/x4cguzja-4n3zaxuh-7dyny46b-x2atc84i"
 download_directory = "downloads"
-max_items_to_collect = 1000
-
-mime_audio = "images/icons/mime-audio.svg"
-mime_unknown = "images/icons/mime-unknown.svg"
-mime_directory = "images/icons/dir.svg"
+max_items_to_collect = 100000000000
 
 if not os.path.exists(download_directory):
     os.makedirs(download_directory)
@@ -42,12 +37,21 @@ def initialize_driver():
 def fetch_items_in_directory(url, remaining_items, current_path, stack, driver):
     print(f"Fetching items in directory: {url}")
     next_page = True
-    page_number = 0
+    page_number = 1
     valid_extensions = {'.mp3', '.m4a', '.wav', '.opus'}
 
     try:
         while remaining_items > 0 and next_page:
-            current_url = f"{url}?page={page_number}" if page_number > 0 else url
+            if page_number > 1:
+                if "sync_id=" in url:
+                    base_url = url.split("&page=")[0].split("?sync_id=")[0]
+                    sync_id = url.split("?sync_id=")[1].split("&")[0]
+                    current_url = f"{base_url}?sync_id={sync_id}&page={page_number}"
+                else:
+                    current_url = f"{url}?page={page_number}"
+            else:
+                current_url = url
+
             print(f"Navigating to: {current_url}")
             driver.get(current_url)
             WebDriverWait(driver, 10).until(
@@ -55,14 +59,10 @@ def fetch_items_in_directory(url, remaining_items, current_path, stack, driver):
             )
             
             rows = driver.find_elements(By.CSS_SELECTOR, "table.list-table tbody tr")
-
             print(f"Found {len(rows)} rows on page {page_number} of directory")
 
-            row_indices = list(range(len(rows)))
-            with multiprocessing.Pool(processes=50) as pool:
-                results = pool.map(process_row, [(row_index, current_url, current_path, valid_extensions) for row_index in row_indices])
-
-            for result in results:
+            for row in rows:
+                result = process_row(row, current_url, current_path, valid_extensions, driver)
                 if result is not None:
                     if isinstance(result, SongInfo):
                         insert_song(result)
@@ -79,49 +79,40 @@ def fetch_items_in_directory(url, remaining_items, current_path, stack, driver):
             page_number += 1
 
     except Exception as e:
-        print(f"An error occurred while fetching items in directory: Path: {current_path} Remaining Items: {remaining_items} URL: {url} Page: {page_number}    {e}")
+        print(f"An error occurred while fetching items in directory: Path: {current_path} Remaining Items: {remaining_items} URL: {url} Page: {page_number} {e}")
         print(f"Stacktrace: {e.__traceback__}")
 
     return remaining_items
 
-def process_row(params):
-    row_index, current_url, current_path, valid_extensions = params
-    driver = initialize_driver()
-    print(f"Processing row {row_index} on page {current_url}")
-    driver.get(current_url)
-    WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.CLASS_NAME, "list-table"))
-    )
-    
+def process_row(row, current_url, current_path, valid_extensions, driver):
     try:
-        rows = driver.find_elements(By.CSS_SELECTOR, "table.list-table tbody tr")
-        row = rows[row_index]
-        
         file_name_element = row.find_element(By.CSS_SELECTOR, "td.table-filename span")
         file_type_element = row.find_element(By.TAG_NAME, "img")
+        file_id = row.get_attribute("id").replace("sync-id-", "")
         file_name = file_name_element.text
         file_src = file_type_element.get_attribute("src")
-        
-        driver.execute_script("arguments[0].focus();", file_name_element)
-        driver.execute_script("arguments[0].click();", file_name_element)
-        
-        file_url = driver.current_url
-        print(f"Clicked on file: {file_name}")
 
-        if file_src.endswith(mime_audio) or file_src.endswith(mime_unknown):
+        if "sync_id=" in current_url:
+            base_url = current_url.split("?sync_id=")[0]
+            file_url = f"{base_url}?sync_id={file_id}"
+        else:
+            file_url = f"{shared_folder_url}/view/default/{file_id}"
+        
+        if file_src.endswith("mime-audio.svg") or file_src.endswith("mime-unknown.svg"):
             if any(file_name.lower().endswith(ext) for ext in valid_extensions):
                 print(f"Found audio file: {file_name} @ url {file_url}")
-                driver.quit()
                 return SongInfo(name=file_name, page_url=file_url, path="/".join(current_path))
-        elif file_src.endswith(mime_directory):
+        elif file_src.endswith("dir.svg"):
+            if "sync_id=" in current_url:
+                nested_folder_url = f"{base_url}?sync_id={file_id}"
+            else:
+                nested_folder_url = f"{shared_folder_url}?sync_id={file_id}"
             print(f"Found directory: {file_name}, adding to stack.")
-            driver.quit()
-            return (file_url, current_path + [file_name])
+            return (nested_folder_url, current_path + [file_name])
     except Exception as e:
-        print(f"Error processing row {row_index}: {e}")
+        print(f"Error processing row: {e}")
         print(f"Stacktrace: {e.__traceback__}")
     
-    driver.quit()
     return None
 
 def extract_current_and_max_from_pagination(driver):
@@ -177,7 +168,7 @@ def wait_for_downloads(download_dir):
 def download_file(file_name, driver):
     print(f"Downloading file: {file_name}")
 
-    if(file_name.endswith('.mp3')):
+    if file_name.endswith('.mp3'):
         # MP3 files have a different page
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "div[class='col-md-4 col-lg-3'] a[class='showhand tool syncblue']"))
@@ -195,7 +186,6 @@ def download_file(file_name, driver):
     file_path = os.path.join(download_directory, file_name)
     print(f"Downloaded file to: {file_path}")
     return file_path
-
 
 def get_song_url(song_index, callback):
     print(f"Getting song URL for index: {song_index}")
@@ -224,6 +214,3 @@ def get_song_url(song_index, callback):
     
     driver.quit()
     callback(song_url)
-
-if __name__ == "__main__":
-    gather_all_song_names()
