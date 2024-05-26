@@ -13,7 +13,9 @@ from urllib.parse import unquote
 from database import initialize_database, get_all_songs
 from selenium_handler import initialize_driver, gather_all_song_names, get_song_url
 
-app = Flask(__name__)
+
+template_dir = os.path.abspath('./templates2')
+app = Flask(__name__, template_folder=template_dir)
 socketio = SocketIO(app, async_mode='threading')
 
 @app.route('/')

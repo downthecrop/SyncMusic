@@ -1,18 +1,25 @@
 <template>
   <div id="app">
+    <notifications position="top right" />
     <NavSidebar @navigate="navigate" />
     <div class="container" style="margin-left: 270px;">
       <h1>Music Streamer</h1>
-      <button v-if="navigationHistory.length" @click="goBack" class="btn btn-secondary mb-3">Back</button>
-      <ul v-if="currentView !== 'all'" id="nav-list" class="list-group">
-        <li v-for="item in displayItems" :key="item.name" class="list-group-item">
-          <a href="#" @click.prevent="handleNavigation(item)" class="nav-link">{{ item.name }}</a>
-        </li>
-      </ul>
-      <ul v-else id="songs-list" class="list-group">
-        <li v-for="song in songs" :key="song.index" class="list-group-item">
-          <a href="#" @click.prevent="playSong(song.index)" class="play-song">{{ song.name }}</a>
-          <br><small>{{ song.path }}</small>
+      <button v-if="navigationHistory.length > 1" @click="goBack" class="btn btn-secondary mb-3">Back</button>
+      <nav aria-label="breadcrumb" v-if="navigationHistory.length">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item" v-for="(item, index) in navigationHistory" :key="index">
+            <a href="#" @click.prevent="navigateToBreadcrumb(index)">{{ item.view }}{{ item.name ? ': ' + item.name : ''
+              }}</a>
+          </li>
+        </ol>
+      </nav>
+      <ul id="nav-list" class="list-group">
+        <li v-for="(item, index) in displayItems" :key="item.name" class="list-group-item border-0">
+          <a href="#" @click.prevent="handleNavigation(item)" class="nav-link">
+            <i :class="getIconClass(currentView)" class="mr-2"></i>{{ item.name }}
+          </a>
+          <small v-if="isSongView">{{ item.path }}</small>
+          <div v-if="index < displayItems.length - 1" class="border-top mt-2"></div>
         </li>
       </ul>
     </div>
@@ -33,9 +40,7 @@ export default {
   data() {
     return {
       songs: [],
-      currentView: 'albums', // albums, songs, all, artists
-      currentAlbum: null,
-      currentArtist: null,
+      currentView: 'songs', // albums, songs, all, artists
       displayItems: [],
       navigationHistory: [],
       socket: null,
@@ -48,6 +53,11 @@ export default {
       }
     };
   },
+  computed: {
+    isSongView() {
+      return this.currentView === 'songs' || this.currentView === 'all';
+    }
+  },
   methods: {
     async fetchSongs() {
       try {
@@ -55,18 +65,22 @@ export default {
         const data = await response.json();
         this.songs = data.songs.map(song => {
           const pathParts = song.path.split('/');
+          const name = song.name.replace(/\.(m4a|mp3)$/i, ''); // Remove .m4a and .mp3 extensions
           return {
             ...song,
+            name,
             artist: pathParts[pathParts.length - 2] || "Unknown Artist",
-            album: pathParts[pathParts.length - 1] || "Unknown Album"
+            album: pathParts[pathParts.length - 1] || "Unknown Album",
+            path: song.path
           };
         });
-        this.displayAlbums();
+        this.displayAllSongs();
       } catch (error) {
         console.error("Error fetching songs:", error);
       }
     },
     playSong(index) {
+      this.$notify("Attemping to play song: " + index);
       this.socket.emit("play_song", { index: index });
     },
     handlePlaySong(data) {
@@ -84,92 +98,103 @@ export default {
         console.error("Error fetching metadata:", error);
       }
     },
-    displayAlbums(saveHistory = true) {
-      if (saveHistory) {
-        this.navigationHistory.push({
-          view: this.currentView,
-          album: this.currentAlbum,
-          artist: this.currentArtist
-        });
-      }
+    displayAlbums() {
       this.currentView = 'albums';
-      this.currentAlbum = null;
-      this.currentArtist = null;
       const albums = [...new Set(this.songs.map(song => song.album))];
       this.displayItems = albums.map(album => ({ name: album }));
+      this.updateNavigationHistory({ view: 'Albums' });
     },
-    displaySongs(album, saveHistory = true) {
-      if (saveHistory) {
-        this.navigationHistory.push({
-          view: this.currentView,
-          album: this.currentAlbum,
-          artist: this.currentArtist
-        });
-      }
+    displaySongs(album) {
       this.currentView = 'songs';
-      this.currentAlbum = album;
       this.displayItems = this.songs.filter(song => song.album === album);
+      this.updateNavigationHistory({ view: 'Songs', name: album });
     },
     displayAllSongs() {
       this.currentView = 'all';
-      this.displayItems = this.songs;
+      this.displayItems = this.songs.map((song, index) => ({ ...song, index }));
+      this.updateNavigationHistory({ view: 'All Songs' });
     },
     displayArtists() {
       this.currentView = 'artists';
-      this.currentAlbum = null;
-      this.currentArtist = null;
       const artists = [...new Set(this.songs.map(song => song.artist))];
       this.displayItems = artists.map(artist => ({ name: artist }));
+      this.updateNavigationHistory({ view: 'Artists' });
     },
-    displayArtistAlbums(artist, saveHistory = true) {
-      if (saveHistory) {
-        this.navigationHistory.push({
-          view: this.currentView,
-          album: this.currentAlbum,
-          artist: this.currentArtist
-        });
-      }
+    displayArtistAlbums(artist) {
       this.currentView = 'albums';
-      this.currentArtist = artist;
       const albums = [...new Set(this.songs.filter(song => song.artist === artist).map(song => song.album))];
       this.displayItems = albums.map(album => ({ name: album }));
+      this.updateNavigationHistory({ view: 'Albums', name: artist });
     },
     handleNavigation(item) {
       if (this.currentView === 'albums') {
         this.displaySongs(item.name);
-      } else if (this.currentView === 'songs') {
+      } else if (this.currentView === 'songs' || this.currentView === 'all') {
         this.playSong(item.index);
       } else if (this.currentView === 'artists') {
         this.displayArtistAlbums(item.name);
       }
     },
+
     goBack() {
-      const previousState = this.navigationHistory.pop();
-      if (previousState) {
-        this.currentView = previousState.view;
-        this.currentAlbum = previousState.album;
-        this.currentArtist = previousState.artist;
-        if (this.currentView === 'albums') {
-          this.displayAlbums(false);
-        } else if (this.currentView === 'songs') {
-          this.displaySongs(this.currentAlbum, false);
-        } else if (this.currentView === 'artists') {
+      if (this.navigationHistory.length > 1) {
+        this.navigationHistory.pop();
+        const previousState = this.navigationHistory[this.navigationHistory.length - 1];
+        this.restoreView(previousState.view, previousState.name);
+      }
+    },
+    restoreView(view, name) {
+      switch (view) {
+        case 'All Songs':
+          this.displayAllSongs();
+          break;
+        case 'Artists':
           this.displayArtists();
-        }
+          break;
+        case 'Albums':
+          name ? this.displayArtistAlbums(name) : this.displayAlbums();
+          break;
+        case 'Songs':
+          if (name) {
+            this.currentView = 'songs';
+            this.displayItems = this.songs.filter(song => song.album === name);
+          }
+          break;
       }
     },
     navigate(view) {
+      this.navigationHistory = [];
       if (view === 'All') {
-        this.navigationHistory = [];
         this.displayAllSongs();
       } else if (view === 'Artists') {
-        this.navigationHistory = [];
         this.displayArtists();
       } else if (view === 'Albums') {
-        this.navigationHistory = [];
         this.displayAlbums();
       }
     },
+    navigateToBreadcrumb(index) {
+      this.navigationHistory = this.navigationHistory.slice(0, index + 1);
+      const previousState = this.navigationHistory[index];
+      this.restoreView(previousState.view, previousState.name);
+    },
+    updateNavigationHistory(state) {
+      if (this.navigationHistory.length === 0 || this.navigationHistory[this.navigationHistory.length - 1].view !== state.view || this.navigationHistory[this.navigationHistory.length - 1].name !== state.name) {
+        this.navigationHistory.push(state);
+      }
+    },
+    getIconClass(view) {
+      switch (view) {
+        case 'albums':
+          return 'fas fa-folder';
+        case 'artists':
+          return 'fas fa-microphone';
+        case 'songs':
+        case 'all':
+          return 'fas fa-music';
+        default:
+          return 'fas fa-music';
+      }
+    }
   },
   mounted() {
     this.socket = io.connect('http://localhost:5000');
@@ -252,23 +277,20 @@ h1 {
   color: #fff;
 }
 
-.nav-sidebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 250px;
-  height: 100%;
-  background-color: #000;
-  padding-top: 20px;
+.border-top {
+  border-top: 1px solid #444;
+}
+
+.breadcrumb {
+  background-color: #282828;
   color: #B3B3B3;
 }
 
-.nav-sidebar .nav-item {
-  padding: 10px 20px;
+.breadcrumb-item a {
+  color: #1DB954;
 }
 
-.nav-sidebar .nav-item:hover {
-  background-color: #1DB954;
+.breadcrumb-item a:hover {
   color: #fff;
 }
 </style>

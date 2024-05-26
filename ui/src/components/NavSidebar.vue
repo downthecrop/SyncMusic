@@ -31,11 +31,26 @@ export default {
 </script>
 
 <style>
-.nav-sidebar {
-  width: 250px;
-  position: fixed;
-}
 .nav-link .fas {
   margin-right: 8px;
+}
+.nav-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 250px;
+  height: 100%;
+  background-color: #000;
+  padding-top: 20px;
+  color: #B3B3B3;
+}
+
+.nav-sidebar .nav-item {
+  padding: 10px 20px;
+}
+
+.nav-sidebar .nav-item:hover {
+  background-color: #1DB954;
+  color: #fff;
 }
 </style>

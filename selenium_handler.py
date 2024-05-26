@@ -16,25 +16,31 @@ max_items_to_collect = 100000000000
 if not os.path.exists(download_directory):
     os.makedirs(download_directory)
 
+# Global variable for the Chrome driver
+driver = None
+
 def initialize_driver():
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--mute-audio")
-    chrome_options.add_argument("--log-level=3")
-    prefs = {
-        "download.default_directory": os.path.abspath(download_directory),
-        "download.prompt_for_download": False,
-        "download.directory_upgrade": True,
-        "safebrowsing.enabled": True
-    }
-    chrome_options.add_experimental_option("prefs", prefs)
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
-    print("Chrome driver initialized.")
+    global driver
+    if driver is None:
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--mute-audio")
+        chrome_options.add_argument("--log-level=3")
+        prefs = {
+            "download.default_directory": os.path.abspath(download_directory),
+            "download.prompt_for_download": False,
+            "download.directory_upgrade": True,
+            "safebrowsing.enabled": True
+        }
+        chrome_options.add_experimental_option("prefs", prefs)
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+        print("Chrome driver initialized.")
     return driver
 
-def fetch_items_in_directory(url, remaining_items, current_path, stack, driver):
+def fetch_items_in_directory(url, remaining_items, current_path, stack):
+    driver = initialize_driver()
     print(f"Fetching items in directory: {url}")
     next_page = True
     page_number = 1
@@ -62,7 +68,7 @@ def fetch_items_in_directory(url, remaining_items, current_path, stack, driver):
             print(f"Found {len(rows)} rows on page {page_number} of directory")
 
             for row in rows:
-                result = process_row(row, current_url, current_path, valid_extensions, driver)
+                result = process_row(row, current_url, current_path, valid_extensions)
                 if result is not None:
                     if isinstance(result, SongInfo):
                         insert_song(result)
@@ -84,7 +90,7 @@ def fetch_items_in_directory(url, remaining_items, current_path, stack, driver):
 
     return remaining_items
 
-def process_row(row, current_url, current_path, valid_extensions, driver):
+def process_row(row, current_url, current_path, valid_extensions):
     try:
         file_name_element = row.find_element(By.CSS_SELECTOR, "td.table-filename span")
         file_type_element = row.find_element(By.TAG_NAME, "img")
@@ -147,14 +153,10 @@ def gather_all_song_names():
     stack = [(shared_folder_url, [])]
     remaining_items = max_items_to_collect
 
-    driver = initialize_driver()
-
     while stack and remaining_items > 0:
         current_url, current_path = stack.pop()
         print(f"Popped URL from stack: {current_url}")
-        remaining_items = fetch_items_in_directory(current_url, remaining_items, current_path, stack, driver)
-
-    driver.quit()
+        remaining_items = fetch_items_in_directory(current_url, remaining_items, current_path, stack)
 
     print("Finished gathering songs.")
 
@@ -165,7 +167,8 @@ def wait_for_downloads(download_dir):
         time.sleep(1)
     print("Downloads complete.")
 
-def download_file(file_name, driver):
+def download_file(file_name):
+    driver = initialize_driver()
     print(f"Downloading file: {file_name}")
 
     if file_name.endswith('.mp3'):
@@ -196,21 +199,19 @@ def get_song_url(song_index, callback):
         callback(None)
         return
     
-    driver = initialize_driver()
-
     song_url = None
     try:
+        driver = initialize_driver()
         driver.get(song_info.page_url)
         
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CLASS_NAME, "showhand"))
         )
         
-        song_url = download_file(song_info.name, driver)
+        song_url = download_file(song_info.name)
             
     except Exception as e:
         print(f"An error occurred while getting song URL: {e}")
         print(f"Stacktrace: {e.__traceback__}")
     
-    driver.quit()
     callback(song_url)

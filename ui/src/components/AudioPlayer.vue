@@ -100,7 +100,6 @@ export default {
     },
     handleError(event) {
       console.error("Error loading audio:", event);
-      alert("Failed to load audio. Please try a different song.");
     }
   }
 };
