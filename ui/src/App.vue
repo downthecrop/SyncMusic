@@ -8,15 +8,14 @@
       <nav aria-label="breadcrumb" v-if="navigationHistory.length">
         <ol class="breadcrumb">
           <li class="breadcrumb-item" v-for="(item, index) in navigationHistory" :key="index">
-            <a href="#" @click.prevent="navigateToBreadcrumb(index)">{{ item.view }}{{ item.name ? ': ' + item.name : ''
-              }}</a>
+            <a href="#" @click.prevent="navigateToBreadcrumb(index)">{{ item.view }}{{ item.name ? ': ' + item.name : '' }}</a>
           </li>
         </ol>
       </nav>
       <ul id="nav-list" class="list-group">
         <li v-for="(item, index) in displayItems" :key="item.name" class="list-group-item border-0">
           <a href="#" @click.prevent="handleNavigation(item)" class="nav-link">
-            <i :class="getIconClass(currentView)" class="mr-2"></i>{{ item.name }}
+            <i :class="getIconClass(currentView, item.isDirectory)" class="mr-2"></i>{{ item.name }}
           </a>
           <small v-if="isSongView">{{ item.path }}</small>
           <div v-if="index < displayItems.length - 1" class="border-top mt-2"></div>
@@ -24,23 +23,26 @@
       </ul>
     </div>
     <AudioPlayer ref="audioPlayer" :audioSrc="audioSrc" :metadata="metadata" />
+    <PlaylistUI />
   </div>
 </template>
 
 <script>
 import NavSidebar from "./components/NavSidebar.vue";
 import AudioPlayer from "./components/AudioPlayer.vue";
+import PlaylistUI from './components/PlaylistUI.vue'
 import io from "socket.io-client";
 
 export default {
   components: {
     NavSidebar,
     AudioPlayer,
+    PlaylistUI,
   },
   data() {
     return {
       songs: [],
-      currentView: 'songs', // albums, songs, all, artists
+      currentView: 'songs', // albums, songs, all, artists, directory
       displayItems: [],
       navigationHistory: [],
       socket: null,
@@ -65,7 +67,7 @@ export default {
         const data = await response.json();
         this.songs = data.songs.map(song => {
           const pathParts = song.path.split('/');
-          const name = song.name.replace(/\.(m4a|mp3)$/i, ''); // Remove .m4a and .mp3 extensions
+          const name = song.name.replace(/(\.m4a|\.mp3|\.flac)+$/i, ''); // Remove .m4a, .mp3, .flac extensions, including combinations like .flac.mp3
           return {
             ...song,
             name,
@@ -79,8 +81,49 @@ export default {
         console.error("Error fetching songs:", error);
       }
     },
+    buildDirectoryStructure() {
+      const root = {};
+      this.songs.forEach(song => {
+        const parts = song.path.split('/');
+        let current = root;
+        parts.forEach((part, index) => {
+          if (!current[part]) {
+            current[part] = {
+              name: part,
+              path: parts.slice(0, index + 1).join('/'),
+              isDirectory: true,
+              children: {}
+            };
+          }
+          current = current[part].children;
+        });
+      });
+      return root;
+    },
+    traverseDirectory(directory, path = '') {
+      if (!directory) return [];
+      const items = Object.values(directory);
+      if (path) {
+        this.updateNavigationHistory({ view: 'Directory', name: path });
+      }
+      return items;
+    },
+    displayDirectory(path = '') {
+      this.currentView = 'directory';
+      const directoryStructure = this.buildDirectoryStructure();
+      let current = directoryStructure;
+      if (path) {
+        const parts = path.split('/');
+        parts.forEach(part => {
+          if (current[part]) {
+            current = current[part].children;
+          }
+        });
+      }
+      this.displayItems = this.traverseDirectory(current, path);
+    },
     playSong(index) {
-      this.$notify("Attemping to play song: " + index);
+      this.$notify("Attempting to play song: " + index);
       this.socket.emit("play_song", { index: index });
     },
     handlePlaySong(data) {
@@ -127,7 +170,9 @@ export default {
       this.updateNavigationHistory({ view: 'Albums', name: artist });
     },
     handleNavigation(item) {
-      if (this.currentView === 'albums') {
+      if (item.isDirectory) {
+        this.displayDirectory(item.path);
+      } else if (this.currentView === 'albums') {
         this.displaySongs(item.name);
       } else if (this.currentView === 'songs' || this.currentView === 'all') {
         this.playSong(item.index);
@@ -135,7 +180,6 @@ export default {
         this.displayArtistAlbums(item.name);
       }
     },
-
     goBack() {
       if (this.navigationHistory.length > 1) {
         this.navigationHistory.pop();
@@ -160,6 +204,9 @@ export default {
             this.displayItems = this.songs.filter(song => song.album === name);
           }
           break;
+        case 'Directory':
+          this.displayDirectory(name);
+          break;
       }
     },
     navigate(view) {
@@ -170,6 +217,8 @@ export default {
         this.displayArtists();
       } else if (view === 'Albums') {
         this.displayAlbums();
+      } else if (view === 'Directory') {
+        this.displayDirectory();
       }
     },
     navigateToBreadcrumb(index) {
@@ -182,7 +231,10 @@ export default {
         this.navigationHistory.push(state);
       }
     },
-    getIconClass(view) {
+    getIconClass(view, isDirectory) {
+      if (isDirectory) {
+        return 'fas fa-folder';
+      }
       switch (view) {
         case 'albums':
           return 'fas fa-folder';

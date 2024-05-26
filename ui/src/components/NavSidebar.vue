@@ -17,7 +17,8 @@ export default {
       links: [
         { name: "All", href: "#", icon: "fas fa-list" },
         { name: "Artists", href: "#", icon: "fas fa-user" },
-        { name: "Albums", href: "#", icon: "fas fa-record-vinyl" }
+        { name: "Albums", href: "#", icon: "fas fa-record-vinyl" },
+        { name: "Directory", href: "#", icon: "fas fa-folder" }
       ],
     };
   },
