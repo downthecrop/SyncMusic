@@ -10,6 +10,9 @@
       </div>
       <div class="audio-controls">
         <div class="control-buttons">
+          <button @click="previousTrack" class="control-btn">
+            <i class="fas fa-backward"></i>
+          </button>
           <button @click="toggleShuffle" class="control-btn">
             <i :class="{'fas fa-random': isShuffle, 'fas fa-backward': !isShuffle}"></i>
           </button>
@@ -18,6 +21,9 @@
           </button>
           <button @click="toggleRepeat" class="control-btn">
             <i :class="{'fas fa-redo': isRepeat, 'fas fa-forward': !isRepeat}"></i>
+          </button>
+          <button @click="nextTrack" class="control-btn">
+            <i class="fas fa-forward"></i>
           </button>
         </div>
         <div class="audio-progress">
@@ -30,7 +36,7 @@
         <input type="range" v-model="volume" @input="changeVolume" class="volume-bar">
       </div>
     </div>
-    <audio ref="audioPlayer" :src="audioSrc" @timeupdate="updateTime" @loadedmetadata="updateDuration" @loadeddata="onLoadedData" @play="onPlay" @error="handleError">
+    <audio ref="audioPlayer" :src="audioSrc" @timeupdate="updateTime" @loadedmetadata="updateDuration" @loadeddata="onLoadedData" @play="onPlay" @ended="onEnded" @error="handleError">
       Your browser does not support the audio element.
     </audio>
   </div>
@@ -122,6 +128,15 @@ export default {
     },
     handleError(event) {
       console.error("Error loading audio:", event);
+    },
+    onEnded() {
+      this.$emit('ended');
+    },
+    nextTrack() {
+      this.$emit('next');
+    },
+    previousTrack() {
+      this.$emit('previous');
     }
   }
 };

@@ -13,24 +13,29 @@
         </ol>
       </nav>
       <ul id="nav-list" class="list-group">
-        <li v-for="(item, index) in displayItems" :key="item.name" class="list-group-item border-0">
-          <a href="#" @click.prevent="handleNavigation(item)" class="nav-link">
-            <i :class="getIconClass(currentView, item.isDirectory)" class="mr-2"></i>{{ item.name }}
-          </a>
-          <small v-if="isSongView">{{ item.path }}</small>
-          <div v-if="index < displayItems.length - 1" class="border-top mt-2"></div>
+        <li v-for="(item) in displayItems" :key="item.name" class="list-group-item border-0 d-flex justify-content-between align-items-center">
+          <div class="d-flex align-items-center">
+            <a href="#" @click.prevent="handleNavigation(item)" class="nav-link d-inline-flex align-items-center">
+              <i :class="getIconClass(currentView, item.isDirectory)" class="mr-2"></i>
+              <span class="truncate">{{ item.name }}</span>
+            </a>
+            <br>
+            <small v-if="isSongView" class="ml-2">{{ item.path }}</small>
+          </div>
+          <button v-if="isSongView" @click="addToPlaylist(item)" class="btn btn-primary btn-sm">Add to Playlist</button>
+          <button v-if="isAlbumView" @click="addAlbumToPlaylist(item.name)" class="btn btn-secondary btn-sm">Add Album to Playlist</button>
         </li>
       </ul>
     </div>
-    <AudioPlayer ref="audioPlayer" :audioSrc="audioSrc" :metadata="metadata" />
-    <PlaylistUI />
+    <AudioPlayer ref="audioPlayer" :audioSrc="audioSrc" :metadata="metadata" @ended="handleSongEnded" @next="handleNextTrack" @previous="handlePreviousTrack" />
+    <PlaylistUI :playSong="playSong" :nextSong="nextSong" :previousSong="previousSong" />
   </div>
 </template>
 
 <script>
 import NavSidebar from "./components/NavSidebar.vue";
 import AudioPlayer from "./components/AudioPlayer.vue";
-import PlaylistUI from './components/PlaylistUI.vue'
+import PlaylistUI, { addSongToPlaylist } from './components/PlaylistUI.vue';
 import io from "socket.io-client";
 
 export default {
@@ -52,12 +57,17 @@ export default {
         artist: "Unknown Artist",
         album: "Unknown Album",
         year: "Unknown Year"
-      }
+      },
+      currentPlaylist: [],
+      currentIndex: -1 // Index to keep track of current playing song in the playlist
     };
   },
   computed: {
     isSongView() {
       return this.currentView === 'songs' || this.currentView === 'all';
+    },
+    isAlbumView() {
+      return this.currentView === 'albums';
     }
   },
   methods: {
@@ -65,7 +75,7 @@ export default {
       try {
         const response = await fetch("http://localhost:5000/songs");
         const data = await response.json();
-        this.songs = data.songs.map(song => {
+        this.songs = data.songs.map((song, index) => {
           const pathParts = song.path.split('/');
           const name = song.name.replace(/(\.m4a|\.mp3|\.flac)+$/i, ''); // Remove .m4a, .mp3, .flac extensions, including combinations like .flac.mp3
           return {
@@ -73,7 +83,8 @@ export default {
             name,
             artist: pathParts[pathParts.length - 2] || "Unknown Artist",
             album: pathParts[pathParts.length - 1] || "Unknown Album",
-            path: song.path
+            path: song.path,
+            index: index // Add index to the song object
           };
         });
         this.displayAllSongs();
@@ -246,6 +257,43 @@ export default {
         default:
           return 'fas fa-music';
       }
+    },
+    addToPlaylist(item) {
+      addSongToPlaylist({ name: item.name, index: item.index });
+    },
+    addAlbumToPlaylist(albumName) {
+      const songs = this.songs.filter(song => song.album === albumName);
+      songs.forEach(song => addSongToPlaylist({ name: song.name, index: song.index }));
+    },
+    songEnded() {
+      if (this.currentIndex < this.currentPlaylist.length - 1) {
+        this.currentIndex++;
+        this.playSong(this.currentPlaylist[this.currentIndex].index);
+      }
+    },
+    handleSongEnded() {
+      console.log("Song is over...")
+      this.songEnded();
+    },
+    handleNextTrack() {
+      console.log("Trying to play next...")
+      if (this.currentIndex < this.currentPlaylist.length - 1) {
+        this.currentIndex++;
+        this.playSong(this.currentPlaylist[this.currentIndex].index);
+      }
+    },
+    handlePreviousTrack() {
+      console.log("Trying to play previous...")
+      if (this.currentIndex > 0) {
+        this.currentIndex--;
+        this.playSong(this.currentPlaylist[this.currentIndex].index);
+      }
+    },
+    nextSong() {
+      this.handleNextTrack();
+    },
+    previousSong() {
+      this.handlePreviousTrack();
     }
   },
   mounted() {
@@ -344,5 +392,14 @@ h1 {
 
 .breadcrumb-item a:hover {
   color: #fff;
+}
+
+.truncate {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 400px;
+  display: inline-block;
+  vertical-align: middle;
 }
 </style>

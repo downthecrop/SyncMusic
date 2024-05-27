@@ -2,19 +2,23 @@
   <div class="playlist-popup" v-if="isOpen">
     <div class="playlist-header">
       <h3>Playlist Manager</h3>
-      <button @click="isOpen = false">X</button>
+      <div class="button-group">
+        <button @click="playPlaylist" class="btn btn-sm">Play</button>
+        <button @click="savePlaylist" class="btn btn-sm">Save Playlist</button>
+        <button @click="shufflePlaylist" class="btn btn-sm">Shuffle</button>
+        <button @click="handleAddItem" class="btn btn-sm">Add</button>
+        <button @click="isOpen = false" class="btn btn-sm">X</button>
+      </div>
     </div>
     <div class="playlist-body">
       <draggable v-model="playlist" @end="onDragEnd" tag="ul">
         <template #item="{ element, index }">
           <li :key="index" class="list-item">
-            {{ element }}
+            {{ element.name }}
             <button @click="removeItem(index)">Remove</button>
           </li>
         </template>
       </draggable>
-      <input v-model="newItem" placeholder="Add new item" />
-      <button @click="addItem">Add</button>
     </div>
   </div>
   <button class="open-popup-button" v-if="!isOpen" @click="isOpen = true">
@@ -23,23 +27,32 @@
 </template>
 
 <script>
-import { ref } from 'vue';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 import draggable from 'vuedraggable';
 
+const playlist = ref([]);
+
+export const addSongToPlaylist = (song) => {
+  playlist.value.push(song);
+};
+
 export default {
+  props: {
+    playSong: Function,
+    nextSong: Function,
+    previousSong: Function
+  },
   components: {
     draggable,
   },
-  setup() {
+  setup(props) {
     const isOpen = ref(false);
     const newItem = ref('');
-    const playlist = ref([]);
+    const currentSongIndex = ref(-1);
 
-    const addItem = () => {
-      if (newItem.value.trim()) {
-        playlist.value.push(newItem.value.trim());
-        newItem.value = '';
-      }
+    const handleAddItem = () => {
+      addSongToPlaylist({ name: newItem.value, index: playlist.value.length });
+      newItem.value = '';
     };
 
     const removeItem = (index) => {
@@ -50,15 +63,83 @@ export default {
       // Logic to handle when dragging ends (if needed)
     };
 
+    const playNextSong = () => {
+      console.log("Playist sees the new next event!")
+      if (currentSongIndex.value < playlist.value.length - 1) {
+        currentSongIndex.value++;
+        props.playSong(playlist.value[currentSongIndex.value].index);
+      }
+    };
+
+    const playPreviousSong = () => {
+      if (currentSongIndex.value > 0) {
+        currentSongIndex.value--;
+        props.playSong(playlist.value[currentSongIndex.value].index);
+      }
+    };
+
+    const playPlaylist = () => {
+      currentSongIndex.value = 0;
+      props.playSong(playlist.value[currentSongIndex.value].index);
+    };
+
+    const savePlaylist = () => {
+      // Logic to save the playlist
+      console.log('Saving playlist:', playlist.value);
+    };
+
+    const shufflePlaylist = () => {
+      // Logic to shuffle the playlist
+      for (let i = playlist.value.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [playlist.value[i], playlist.value[j]] = [playlist.value[j], playlist.value[i]];
+      }
+    };
+
+    watch(currentSongIndex, (newIndex, oldIndex) => {
+      if (newIndex !== oldIndex) {
+        if (newIndex < playlist.value.length) {
+          props.playSong(playlist.value[newIndex].index);
+        }
+      }
+    });
+
+    watch(playlist, () => {
+      if (currentSongIndex.value >= playlist.value.length) {
+        currentSongIndex.value = playlist.value.length - 1;
+      }
+    });
+
+    // eslint-disable-next-line vue/no-deprecated-events-api
+    onMounted(() => {
+      // eslint-disable-next-line vue/no-deprecated-events-api
+      this.$on('next', playNextSong);
+      // eslint-disable-next-line vue/no-deprecated-events-api
+      this.$on('previous', playPreviousSong);
+    });
+
+    // eslint-disable-next-line vue/no-deprecated-events-api
+    onUnmounted(() => {
+      // eslint-disable-next-line vue/no-deprecated-events-api
+      this.$off('next', playNextSong);
+      // eslint-disable-next-line vue/no-deprecated-events-api
+      this.$off('previous', playPreviousSong);
+    });
+
     return {
       isOpen,
       newItem,
       playlist,
-      addItem,
+      handleAddItem,
       removeItem,
       onDragEnd,
+      playPlaylist,
+      savePlaylist,
+      shufflePlaylist,
+      playNextSong,
+      playPreviousSong
     };
-  },
+  }
 };
 </script>
 
@@ -85,11 +166,18 @@ export default {
   align-items: center;
 }
 
+.button-group {
+  display: flex;
+  gap: 5px;
+}
+
 .playlist-body {
   padding: 10px;
   flex-grow: 1;
   display: flex;
   flex-direction: column;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 ul {
