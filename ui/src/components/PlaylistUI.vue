@@ -1,13 +1,11 @@
 ﻿<template>
   <div class="playlist-popup" v-if="isOpen">
     <div class="playlist-header">
-      <h3>Playlist Manager</h3>
       <div class="button-group">
-        <button @click="playPlaylist" class="btn btn-sm">Play</button>
-        <button @click="savePlaylist" class="btn btn-sm">Save Playlist</button>
-        <button @click="shufflePlaylist" class="btn btn-sm">Shuffle</button>
-        <button @click="handleAddItem" class="btn btn-sm">Add</button>
-        <button @click="isOpen = false" class="btn btn-sm">X</button>
+        <button type="button" @click="playPlaylist" class="btn btn-sm">Play</button>
+        <button type="button" @click="savePlaylist" class="btn btn-sm">Save Playlist</button>
+        <button type="button" @click="shufflePlaylist" class="btn btn-sm">Shuffle</button>
+        <button type="button" @click="isOpen = false" class="btn btn-sm">X</button>
       </div>
     </div>
     <div class="playlist-body">
@@ -15,7 +13,8 @@
         <template #item="{ element, index }">
           <li :key="index" class="list-item">
             {{ element.name }}
-            <button @click="removeItem(index)">Remove</button>
+            <button @click="playSongAtIndex(index)">></button>
+            <button @click="removeItem(index)">X</button>
           </li>
         </template>
       </draggable>
@@ -48,11 +47,6 @@ export default {
     const newItem = ref('');
     const currentSongIndex = ref(-1);
 
-    const handleAddItem = () => {
-      addSongToPlaylist({ name: newItem.value, index: playlist.value.length });
-      newItem.value = '';
-    };
-
     const removeItem = (index) => {
       playlist.value.splice(index, 1);
     };
@@ -67,6 +61,11 @@ export default {
         currentSongIndex.value++;
         props.playSong(playlist.value[currentSongIndex.value].index);
       }
+    };
+
+    const playSongAtIndex = (index) => {
+      currentSongIndex.value = index
+      props.playSong(playlist.value[currentSongIndex.value].index);
     };
 
     const playPreviousSong = () => {
@@ -113,9 +112,9 @@ export default {
       isOpen,
       newItem,
       playlist,
-      handleAddItem,
       removeItem,
       onDragEnd,
+      playSongAtIndex,
       playPlaylist,
       savePlaylist,
       shufflePlaylist,
@@ -173,7 +172,7 @@ ul {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 5px 0;
+  padding: 5px;
   background-color: #555;
   margin-bottom: 5px;
   border-radius: 4px;

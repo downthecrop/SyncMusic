@@ -271,10 +271,7 @@ export default {
       songs.forEach(song => addSongToPlaylist({ name: song.name, index: song.index }));
     },
     songEnded() {
-      if (this.currentIndex < this.currentPlaylist.length - 1) {
-        this.currentIndex++;
-        this.playSong(this.currentPlaylist[this.currentIndex].index);
-      }
+      this.$refs.playlistUI.playNextSong();
     },
     handleSongEnded() {
       console.log("Song is over...")
@@ -420,9 +417,8 @@ h1 {
   content: attr(data-tooltip);
   height: 13px;
   position: absolute;
-  top: -20px;
-  padding: 5px 10px;
-  border-radius: 5px;
+  padding: 5px 1 1 5px;
+  border-radius: 2px;
   color: #fff;
   background: #025272;
   box-shadow: 0 3px 8px rgba(165, 165, 165, 0.5);
@@ -431,7 +427,6 @@ h1 {
 [data-tooltip]:not([data-tooltip=""]):hover:before {
   visibility: visible;
   opacity: 1;
-  top: -30px
 }
 
 [data-tooltip]:not([data-tooltip=""]):hover:after {
