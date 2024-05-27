@@ -13,14 +13,14 @@
           <button @click="previousTrack" class="control-btn">
             <i class="fas fa-backward"></i>
           </button>
-          <button @click="toggleShuffle" class="control-btn">
-            <i :class="{'fas fa-random': isShuffle, 'fas fa-backward': !isShuffle}"></i>
+          <button @click="toggleShuffle" :class="{'active': isShuffle}" class="control-btn">
+            <i class="fas fa-random"></i>
           </button>
           <button @click="togglePlay" class="control-btn">
             <i :class="{'fas fa-pause': isPlaying, 'fas fa-play': !isPlaying}"></i>
           </button>
-          <button @click="toggleRepeat" class="control-btn">
-            <i :class="{'fas fa-redo': isRepeat, 'fas fa-forward': !isRepeat}"></i>
+          <button @click="toggleRepeat" :class="{'active': isRepeat}" class="control-btn">
+            <i class="fas fa-redo"></i>
           </button>
           <button @click="nextTrack" class="control-btn">
             <i class="fas fa-forward"></i>
@@ -204,6 +204,10 @@ export default {
   font-size: 20px;
   cursor: pointer;
   margin: 0 10px;
+}
+
+.control-btn.active {
+  color: #1db954;
 }
 
 .audio-progress {

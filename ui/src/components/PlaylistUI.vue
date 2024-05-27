@@ -27,7 +27,7 @@
 </template>
 
 <script>
-import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { ref, watch } from 'vue';
 import draggable from 'vuedraggable';
 
 const playlist = ref([]);
@@ -39,8 +39,6 @@ export const addSongToPlaylist = (song) => {
 export default {
   props: {
     playSong: Function,
-    nextSong: Function,
-    previousSong: Function
   },
   components: {
     draggable,
@@ -64,7 +62,7 @@ export default {
     };
 
     const playNextSong = () => {
-      console.log("Playist sees the new next event!")
+      console.log("Playlist sees the new next event!");
       if (currentSongIndex.value < playlist.value.length - 1) {
         currentSongIndex.value++;
         props.playSong(playlist.value[currentSongIndex.value].index);
@@ -72,6 +70,7 @@ export default {
     };
 
     const playPreviousSong = () => {
+      console.log("Hello! I'm trying to play the previous song!");
       if (currentSongIndex.value > 0) {
         currentSongIndex.value--;
         props.playSong(playlist.value[currentSongIndex.value].index);
@@ -108,22 +107,6 @@ export default {
       if (currentSongIndex.value >= playlist.value.length) {
         currentSongIndex.value = playlist.value.length - 1;
       }
-    });
-
-    // eslint-disable-next-line vue/no-deprecated-events-api
-    onMounted(() => {
-      // eslint-disable-next-line vue/no-deprecated-events-api
-      this.$on('next', playNextSong);
-      // eslint-disable-next-line vue/no-deprecated-events-api
-      this.$on('previous', playPreviousSong);
-    });
-
-    // eslint-disable-next-line vue/no-deprecated-events-api
-    onUnmounted(() => {
-      // eslint-disable-next-line vue/no-deprecated-events-api
-      this.$off('next', playNextSong);
-      // eslint-disable-next-line vue/no-deprecated-events-api
-      this.$off('previous', playPreviousSong);
     });
 
     return {

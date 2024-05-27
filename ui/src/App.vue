@@ -8,29 +8,34 @@
       <nav aria-label="breadcrumb" v-if="navigationHistory.length">
         <ol class="breadcrumb">
           <li class="breadcrumb-item" v-for="(item, index) in navigationHistory" :key="index">
-            <a href="#" @click.prevent="navigateToBreadcrumb(index)">{{ item.view }}{{ item.name ? ': ' + item.name : '' }}</a>
+            <a href="#" @click.prevent="navigateToBreadcrumb(index)">{{ item.view }}{{ item.name ? ': ' + item.name : ''
+              }}</a>
           </li>
         </ol>
       </nav>
       <ul id="nav-list" class="list-group">
-        <li v-for="(item) in displayItems" :key="item.name" class="list-group-item border-0 d-flex justify-content-between align-items-center">
+        <li v-for="(item) in displayItems" :key="item.name"
+          class="list-group-item border-0 d-flex justify-content-between align-items-center">
           <div class="d-flex align-items-center">
             <a href="#" @click.prevent="handleNavigation(item)" class="nav-link d-inline-flex align-items-center">
               <i :class="getIconClass(currentView, item.isDirectory)" class="mr-2"></i>
-              <span class="truncate">{{ item.name }}</span>
+              <span class="truncate" :title="item.name" :data-tooltip="item.name">{{ item.name }}</span>
             </a>
             <br>
             <small v-if="isSongView" class="ml-2">{{ item.path }}</small>
           </div>
           <button v-if="isSongView" @click="addToPlaylist(item)" class="btn btn-primary btn-sm">Add to Playlist</button>
-          <button v-if="isAlbumView" @click="addAlbumToPlaylist(item.name)" class="btn btn-secondary btn-sm">Add Album to Playlist</button>
+          <button v-if="isAlbumView" @click="addAlbumToPlaylist(item.name)" class="btn btn-secondary btn-sm">Add Album
+            to Playlist</button>
         </li>
       </ul>
     </div>
-    <AudioPlayer ref="audioPlayer" :audioSrc="audioSrc" :metadata="metadata" @ended="handleSongEnded" @next="handleNextTrack" @previous="handlePreviousTrack" />
-    <PlaylistUI :playSong="playSong" :nextSong="nextSong" :previousSong="previousSong" />
+    <AudioPlayer ref="audioPlayer" :audioSrc="audioSrc" :metadata="metadata" @ended="handleSongEnded"
+      @next="handleNextTrack" @previous="handlePreviousTrack" />
+    <PlaylistUI ref="playlistUI" :playSong="playSong" :nextSong="nextSong" :previousSong="previousSong" />
   </div>
 </template>
+
 
 <script>
 import NavSidebar from "./components/NavSidebar.vue";
@@ -277,17 +282,11 @@ export default {
     },
     handleNextTrack() {
       console.log("Trying to play next...")
-      if (this.currentIndex < this.currentPlaylist.length - 1) {
-        this.currentIndex++;
-        this.playSong(this.currentPlaylist[this.currentIndex].index);
-      }
+      this.$refs.playlistUI.playNextSong();
     },
     handlePreviousTrack() {
       console.log("Trying to play previous...")
-      if (this.currentIndex > 0) {
-        this.currentIndex--;
-        this.playSong(this.currentPlaylist[this.currentIndex].index);
-      }
+      this.$refs.playlistUI.playPreviousSong();
     },
     nextSong() {
       this.handleNextTrack();
@@ -401,5 +400,43 @@ h1 {
   max-width: 400px;
   display: inline-block;
   vertical-align: middle;
+}
+
+/* TOOLTIP */
+/* [data-tooltip]{position:absolute;} */
+[data-tooltip]:before,
+[data-tooltip]:after {
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  white-space: nowrap;
+  transition: all .2s ease;
+  font-size: 11px;
+  font-family: dotum;
+  letter-spacing: -1px;
+}
+
+[data-tooltip]:before {
+  content: attr(data-tooltip);
+  height: 13px;
+  position: absolute;
+  top: -20px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  color: #fff;
+  background: #025272;
+  box-shadow: 0 3px 8px rgba(165, 165, 165, 0.5);
+}
+
+[data-tooltip]:not([data-tooltip=""]):hover:before {
+  visibility: visible;
+  opacity: 1;
+  top: -30px
+}
+
+[data-tooltip]:not([data-tooltip=""]):hover:after {
+  visibility: visible;
+  opacity: 1;
+  top: -8px
 }
 </style>
