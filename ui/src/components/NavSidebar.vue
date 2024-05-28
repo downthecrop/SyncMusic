@@ -11,6 +11,14 @@
         </a>
       </li>
     </ul>
+    <div class="playlist-section">
+      <h2 class="playlist-title"></h2>
+      <ul class="playlist-list">
+        <li class="playlist-item" v-for="playlist in playlists" :key="playlist.name">
+          <a class="playlist-link" href="#">{{ playlist.name }}</a>
+        </li>
+      </ul>
+    </div>
   </div>
 </template>
 
@@ -23,6 +31,11 @@ export default {
         { name: "Artists", href: "#", icon: "fas fa-user", active: false },
         { name: "Albums", href: "#", icon: "fas fa-record-vinyl", active: false },
         { name: "Directory", href: "#", icon: "fas fa-folder", active: false }
+      ],
+      playlists: [
+        { name: "My Playlist 1" },
+        { name: "My Playlist 2" },
+        { name: "My Playlist 3" }
       ],
     };
   },
@@ -68,6 +81,19 @@ export default {
   font-size: 1.2em;
 }
 
+a:link { 
+  text-decoration: none; 
+} 
+a:visited { 
+  text-decoration: none; 
+} 
+a:hover { 
+  text-decoration: none; 
+} 
+a:active { 
+  text-decoration: none; 
+}
+
 .nav-sidebar .nav-item {
   padding: 10px 20px;
 }
@@ -88,5 +114,46 @@ export default {
 
 .nav-link.active {
   color: #1DB954;
+}
+
+.divider {
+  border: 1px solid #B3B3B3;
+  width: 80%;
+  margin: 20px auto;
+}
+
+.playlist-section {
+  padding: 0 20px;
+}
+
+.playlist-title {
+  color: #fff;
+  font-size: 1.1em;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #1DB954;
+  padding-bottom: 5px;
+}
+
+.playlist-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.playlist-item {
+  padding: 8px 0;
+}
+
+.playlist-link {
+  color: #B3B3B3;
+  text-decoration: none;
+  display: block;
+  padding: 8px 10px;
+  border-radius: 5px;
+}
+
+.playlist-link:hover {
+  color: #fff;
+  background-color: #333;
 }
 </style>
