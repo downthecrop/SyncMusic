@@ -1,7 +1,7 @@
 ﻿<template>
   <div class="nav-sidebar">
     <div class="sidebar-header">
-      <img src="https://i.imgur.com/fCgGhAP.png" alt="Sidebar Image" class="sidebar-image">
+      <img src="http://localhost:5000/static/logo.png" alt="Sidebar Image" class="sidebar-image">
       <h1 class="sidebar-title">Syncify</h1>
     </div>
     <ul class="nav flex-column">
@@ -14,8 +14,31 @@
     <div class="playlist-section">
       <h2 class="playlist-title"></h2>
       <ul class="playlist-list">
-        <li class="playlist-item" v-for="playlist in playlists" :key="playlist.name">
-          <a class="playlist-link" href="#">{{ playlist.name }}</a>
+        <li class="playlist-item" v-for="(playlist, index) in localPlaylists" :key="playlist.name">
+          <div class="playlist-controls">
+            <input
+              v-if="editingIndex === index"
+              :value="playlist.name"
+              @input="debouncedUpdatePlaylistName($event.target.value, index)"
+              @blur="stopEditing(index)"
+              @keyup.enter="stopEditing(index)"
+              class="playlist-input"
+            />
+            <a
+              v-else
+              class="playlist-link"
+              @click="loadPlaylist(playlist)"
+              href="#"
+            >
+              {{ playlist.name }}
+            </a>
+            <button @click="startEditing(index)" class="edit-button">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button @click="deletePlaylist(index)" class="delete-button">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
         </li>
       </ul>
     </div>
@@ -24,6 +47,9 @@
 
 <script>
 export default {
+  props: {
+    playlists: Array
+  },
   data() {
     return {
       links: [
@@ -32,11 +58,9 @@ export default {
         { name: "Albums", href: "#", icon: "fas fa-record-vinyl", active: false },
         { name: "Directory", href: "#", icon: "fas fa-folder", active: false }
       ],
-      playlists: [
-        { name: "My Playlist 1" },
-        { name: "My Playlist 2" },
-        { name: "My Playlist 3" }
-      ],
+      editingIndex: null,
+      localPlaylists: [...this.playlists],
+      updateTimeout: null
     };
   },
   methods: {
@@ -45,6 +69,55 @@ export default {
         link.active = (link.name === view);
       });
       this.$emit('navigate', view);
+    },
+    loadPlaylist(playlist) {
+      console.log("Loading playlist", playlist);
+      this.$emit('loadPlaylist', playlist);
+    },
+    startEditing(index) {
+      this.editingIndex = index;
+    },
+    stopEditing() {
+      if (this.updateTimeout) {
+        clearTimeout(this.updateTimeout);
+        this.updateTimeout = null;
+      }
+      this.editingIndex = null;
+      this.updatePlaylists();
+    },
+    deletePlaylist(index) {
+      this.localPlaylists.splice(index, 1);
+      this.updatePlaylists();
+    },
+    updatePlaylists() {
+      this.$emit('update:playlists', this.localPlaylists);
+      this.savePlaylists();
+    },
+    savePlaylists() {
+      localStorage.setItem('playlists', JSON.stringify(this.localPlaylists));
+    },
+    debouncedUpdatePlaylistName(newName, index) {
+      if (this.updateTimeout) {
+        clearTimeout(this.updateTimeout);
+      }
+      this.updateTimeout = setTimeout(() => {
+        this.localPlaylists[index].name = newName;
+        this.updatePlaylists();
+      }, 1000);
+    }
+  },
+  watch: {
+    playlists: {
+      handler(newPlaylists) {
+        this.localPlaylists = [...newPlaylists];
+      },
+      deep: true
+    }
+  },
+  mounted() {
+    if (localStorage.getItem('playlists')) {
+      this.localPlaylists = JSON.parse(localStorage.getItem('playlists'));
+      this.$emit('update:playlists', this.localPlaylists);
     }
   }
 };
@@ -78,20 +151,19 @@ export default {
 
 .sidebar-title {
   color: #fff;
-  font-size: 1.2em;
 }
 
-a:link { 
-  text-decoration: none; 
-} 
-a:visited { 
-  text-decoration: none; 
-} 
-a:hover { 
-  text-decoration: none; 
-} 
-a:active { 
-  text-decoration: none; 
+a:link {
+  text-decoration: none;
+}
+a:visited {
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: none;
+}
+a:active {
+  text-decoration: none;
 }
 
 .nav-sidebar .nav-item {
@@ -144,16 +216,44 @@ a:active {
   padding: 8px 0;
 }
 
+.playlist-controls {
+  display: flex;
+  align-items: center;
+}
+
+.playlist-input {
+  flex-grow: 1;
+  padding: 5px;
+  margin-right: 5px;
+  border: 1px solid #B3B3B3;
+  border-radius: 5px;
+  background-color: #333;
+  color: #B3B3B3;
+}
+
 .playlist-link {
   color: #B3B3B3;
   text-decoration: none;
   display: block;
   padding: 8px 10px;
   border-radius: 5px;
+  flex-grow: 1;
 }
 
 .playlist-link:hover {
   color: #fff;
   background-color: #333;
+}
+
+.edit-button, .delete-button {
+  background: none;
+  border: none;
+  color: #B3B3B3;
+  cursor: pointer;
+  margin-left: 5px;
+}
+
+.edit-button:hover, .delete-button:hover {
+  color: #fff;
 }
 </style>

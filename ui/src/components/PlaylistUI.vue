@@ -11,6 +11,9 @@
         <button type="button" @click="shufflePlaylist" class="btn btn-sm btn-shuffle">
           <i class="fas fa-random"></i>
         </button>
+        <button type="button" @click="playlist = []" class="btn btn-sm btn-close">
+          <i class="fas fa-trash-alt"></i>
+        </button>
         <button type="button" @click="isOpen = false" class="btn btn-sm btn-close">
           <i class="fas fa-times"></i>
         </button>
@@ -40,7 +43,7 @@
 </template>
 
 <script>
-import { ref, watch } from 'vue';
+import { ref } from 'vue';
 import draggable from 'vuedraggable';
 
 const playlist = ref([]);
@@ -56,7 +59,7 @@ export default {
   components: {
     draggable,
   },
-  setup(props) {
+  setup(props, { emit }) {
     const isOpen = ref(false);
     const newItem = ref('');
     const currentSongIndex = ref(-1);
@@ -66,7 +69,6 @@ export default {
     };
 
     const onDragEnd = () => {
-      // Logic to handle when dragging ends (if needed)
     };
 
     const playNextSong = () => {
@@ -94,7 +96,7 @@ export default {
     };
 
     const savePlaylist = () => {
-      console.log('Saving playlist:', playlist.value);
+      emit('playlist-action', { action: 'save', playlist: playlist.value, name: "New Playlist" });
     };
 
     const shufflePlaylist = () => {
@@ -104,16 +106,11 @@ export default {
       }
     };
 
-    watch(playlist, () => {
-      if (currentSongIndex.value >= playlist.value.length) {
-        currentSongIndex.value = playlist.value.length - 1;
-      }
-    });
-
     return {
       isOpen,
       newItem,
       playlist,
+      currentSongIndex,
       removeItem,
       onDragEnd,
       playSongAtIndex,
@@ -121,8 +118,7 @@ export default {
       savePlaylist,
       shufflePlaylist,
       playNextSong,
-      playPreviousSong,
-      currentSongIndex
+      playPreviousSong
     };
   }
 };

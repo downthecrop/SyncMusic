@@ -2,7 +2,7 @@
   <div id="app">
     <div class="spacer"></div>
     <notifications position="top right" />
-    <NavSidebar @navigate="navigate" />
+    <NavSidebar @navigate="navigate" @loadPlaylist="loadPlaylist" :playlists="playlists" @update:playlists="updatePlaylists"/>
     <div class="container" style="margin-left: 270px;">
       <nav aria-label="breadcrumb" v-if="navigationHistory.length" class="d-flex align-items-center">
         <button v-if="navigationHistory.length > 1" @click="goBack" class="btn btn-link mr-2 back-button">
@@ -37,7 +37,7 @@
     </div>
     <AudioPlayer ref="audioPlayer" :audioSrc="audioSrc" :metadata="metadata" @ended="handleSongEnded"
       @next="handleNextTrack" @previous="handlePreviousTrack" />
-    <PlaylistUI ref="playlistUI" :playSong="playSong" :nextSong="nextSong" :previousSong="previousSong" />
+    <PlaylistUI ref="playlistUI" :playSong="playSong" :nextSong="nextSong" :previousSong="previousSong" @playlist-action="handlePlaylistAction"/>
   </div>
 </template>
 
@@ -58,6 +58,7 @@ export default {
       songs: [],
       currentView: 'songs', // albums, songs, all, artists, directory
       displayItems: [],
+      playlists: [],
       navigationHistory: [],
       socket: null,
       audioSrc: "",
@@ -99,6 +100,12 @@ export default {
         this.displayAllSongs();
       } catch (error) {
         console.error("Error fetching songs:", error);
+      }
+    },
+    handlePlaylistAction(event) {
+      if (event.action === 'save') {
+        console.log("Saving playlist", event)
+        this.playlists.push({name: event.name, playlist: event.playlist});
       }
     },
     buildDirectoryStructure() {
@@ -224,6 +231,9 @@ export default {
         this.restoreView(previousState.view, previousState.name);
       }
     },
+    updatePlaylists(newPlaylists) {
+      this.playlists = newPlaylists;
+    },
     restoreView(view, name) {
       switch (view) {
         case 'All Songs':
@@ -297,6 +307,10 @@ export default {
     handleSongEnded() {
       console.log("Song is over...")
       this.songEnded();
+    },
+    loadPlaylist(event){
+      this.$refs.playlistUI.playlist = event.playlist;
+      this.$refs.playlistUI.isOpen = true;
     },
     handleNextTrack() {
       console.log("Trying to play next...")
