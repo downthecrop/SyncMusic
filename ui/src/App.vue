@@ -1,18 +1,20 @@
 <template>
   <div id="app">
+    <div class="spacer"></div>
     <notifications position="top right" />
     <NavSidebar @navigate="navigate" />
     <div class="container" style="margin-left: 270px;">
-      <h1>Music Streamer</h1>
-      <button v-if="navigationHistory.length > 1" @click="goBack" class="btn btn-secondary mb-3">Back</button>
-      <nav aria-label="breadcrumb" v-if="navigationHistory.length">
-        <ol class="breadcrumb">
+      <nav aria-label="breadcrumb" v-if="navigationHistory.length" class="d-flex align-items-center">
+        <button v-if="navigationHistory.length > 1" @click="goBack" class="btn btn-link mr-2 back-button">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <ol class="breadcrumb mb-0">
           <li class="breadcrumb-item" v-for="(item, index) in navigationHistory" :key="index">
-            <a href="#" @click.prevent="navigateToBreadcrumb(index)">{{ item.view }}{{ item.name ? ': ' + item.name : ''
-              }}</a>
+            <a href="#" @click.prevent="navigateToBreadcrumb(index)">{{ item.view }}{{ item.name ? ': ' + item.name : '' }}</a>
           </li>
         </ol>
       </nav>
+      <div class="spacer"></div>
       <ul id="nav-list" class="list-group">
         <li v-for="(item) in displayItems" :key="item.name"
           class="list-group-item border-0 d-flex justify-content-between align-items-center">
@@ -24,9 +26,12 @@
             <br>
             <small v-if="isSongView" class="ml-2">{{ item.path }}</small>
           </div>
-          <button v-if="isSongView" @click="addToPlaylist(item)" class="btn btn-primary btn-sm">Add to Playlist</button>
-          <button v-if="isAlbumView" @click="addAlbumToPlaylist(item.name)" class="btn btn-secondary btn-sm">Add Album
-            to Playlist</button>
+          <button v-if="isSongView" @click="addToPlaylist(item)" class="btn btn-add">
+            <i class="fas fa-plus"></i>
+          </button>
+          <button v-if="isAlbumView" @click="addAlbumToPlaylist(item.name)" class="btn btn-add">
+            <i class="fas fa-plus"></i>
+          </button>
         </li>
       </ul>
     </div>
@@ -35,7 +40,6 @@
     <PlaylistUI ref="playlistUI" :playSong="playSong" :nextSong="nextSong" :previousSong="previousSong" />
   </div>
 </template>
-
 
 <script>
 import NavSidebar from "./components/NavSidebar.vue";
@@ -89,7 +93,7 @@ export default {
             artist: pathParts[pathParts.length - 2] || "Unknown Artist",
             album: pathParts[pathParts.length - 1] || "Unknown Album",
             path: song.path,
-            index: index // Add index to the song object
+            index: index
           };
         });
         this.displayAllSongs();
@@ -139,7 +143,8 @@ export default {
       this.displayItems = this.traverseDirectory(current, path);
     },
     playSong(index) {
-      this.$notify("Attempting to play song: " + index);
+      const songTitle = this.songs[index].name
+      this.$notify("Attempting to play song: " + songTitle);
       this.socket.emit("play_song", { index: index });
     },
     handlePlaySong(data) {
@@ -187,7 +192,23 @@ export default {
     },
     handleNavigation(item) {
       if (item.isDirectory) {
-        this.displayDirectory(item.path);
+        const directoryStructure = this.buildDirectoryStructure();
+            const parts = item.path.split('/');
+            let current = directoryStructure;
+
+            parts.forEach(part => {
+                if (current[part]) {
+                    current = current[part].children;
+                }
+            });
+
+            if (Object.keys(current).length === 0) {
+                // If no children, it's the deepest directory
+                this.displaySongs(item.name);
+            } else {
+                // If there are children, continue displaying directories
+                this.displayDirectory(item.path);
+            }
       } else if (this.currentView === 'albums') {
         this.displaySongs(item.name);
       } else if (this.currentView === 'songs' || this.currentView === 'all') {
@@ -353,8 +374,20 @@ body {
   }
 }
 
+.spacer {
+  margin: 10px;
+}
+
 h1 {
   color: #fff;
+}
+
+small {
+  color: #fff;
+}
+
+a:hover {
+  color:#000 !important;
 }
 
 #nav-list {
@@ -413,6 +446,10 @@ h1 {
   letter-spacing: -1px;
 }
 
+.btn {
+  color:#55ad74 !important;
+}
+
 [data-tooltip]:before {
   content: attr(data-tooltip);
   height: 13px;
@@ -432,6 +469,14 @@ h1 {
 [data-tooltip]:not([data-tooltip=""]):hover:after {
   visibility: visible;
   opacity: 1;
-  top: -8px
+  top: -8px;
+}
+
+.btn-link {
+  color: #1DB954;
+}
+
+.btn-link:hover {
+  color: #fff;
 }
 </style>

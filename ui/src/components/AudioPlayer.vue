@@ -4,8 +4,8 @@
       <div class="audio-info">
         <img :src="albumCover" alt="Album Cover" class="cover">
         <div class="track-info">
-          <span class="track-title">{{ metadata.title }}</span>
-          <span class="track-artist">{{ metadata.artist }}</span>
+          <span class="track-title truncate-title" :title="metadata.title">{{ metadata.title }}</span>
+          <span class="track-artist truncate-title" :title="metadata.artist">{{ metadata.artist }}</span>
         </div>
       </div>
       <div class="audio-controls">
@@ -214,6 +214,15 @@ export default {
   display: flex;
   align-items: center;
   width: 80%;
+}
+
+.truncate-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 100px;
+  display: inline-block;
+  vertical-align: middle;
 }
 
 .seek-bar {

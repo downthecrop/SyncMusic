@@ -2,26 +2,40 @@
   <div class="playlist-popup" v-if="isOpen">
     <div class="playlist-header">
       <div class="button-group">
-        <button type="button" @click="playPlaylist" class="btn btn-sm">Play</button>
-        <button type="button" @click="savePlaylist" class="btn btn-sm">Save Playlist</button>
-        <button type="button" @click="shufflePlaylist" class="btn btn-sm">Shuffle</button>
-        <button type="button" @click="isOpen = false" class="btn btn-sm">X</button>
+        <button type="button" @click="playPlaylist" class="btn btn-sm btn-play">
+          <i class="fas fa-play"></i>
+        </button>
+        <button type="button" @click="savePlaylist" class="btn btn-sm btn-save">
+          <i class="fas fa-save"></i>
+        </button>
+        <button type="button" @click="shufflePlaylist" class="btn btn-sm btn-shuffle">
+          <i class="fas fa-random"></i>
+        </button>
+        <button type="button" @click="isOpen = false" class="btn btn-sm btn-close">
+          <i class="fas fa-times"></i>
+        </button>
       </div>
     </div>
     <div class="playlist-body">
       <draggable v-model="playlist" @end="onDragEnd" tag="ul">
         <template #item="{ element, index }">
-          <li :key="index" class="list-item">
-            {{ element.name }}
-            <button @click="playSongAtIndex(index)">></button>
-            <button @click="removeItem(index)">X</button>
+          <li :key="index" :class="['list-item', { 'current-song': index === currentSongIndex }]">
+            <span class="truncate" :title="element.name">{{ element.name }}</span>
+            <div class="button-group">
+              <button @click="playSongAtIndex(index)" :class="['btn-icon', { 'btn-icon-active': index === currentSongIndex }]">
+                <i class="fas fa-play"></i>
+              </button>
+              <button @click="removeItem(index)" :class="['btn-icon', { 'btn-icon-active': index === currentSongIndex }]">
+                <i class="fas fa-trash-alt"></i>
+              </button>
+            </div>
           </li>
         </template>
       </draggable>
     </div>
   </div>
   <button class="open-popup-button" v-if="!isOpen" @click="isOpen = true">
-    Open Playlist Manager
+    <i class="fas fa-music"></i> Open Playlist Manager
   </button>
 </template>
 
@@ -56,7 +70,6 @@ export default {
     };
 
     const playNextSong = () => {
-      console.log("Playlist sees the new next event!");
       if (currentSongIndex.value < playlist.value.length - 1) {
         currentSongIndex.value++;
         props.playSong(playlist.value[currentSongIndex.value].index);
@@ -64,12 +77,11 @@ export default {
     };
 
     const playSongAtIndex = (index) => {
-      currentSongIndex.value = index
+      currentSongIndex.value = index;
       props.playSong(playlist.value[currentSongIndex.value].index);
     };
 
     const playPreviousSong = () => {
-      console.log("Hello! I'm trying to play the previous song!");
       if (currentSongIndex.value > 0) {
         currentSongIndex.value--;
         props.playSong(playlist.value[currentSongIndex.value].index);
@@ -82,25 +94,15 @@ export default {
     };
 
     const savePlaylist = () => {
-      // Logic to save the playlist
       console.log('Saving playlist:', playlist.value);
     };
 
     const shufflePlaylist = () => {
-      // Logic to shuffle the playlist
       for (let i = playlist.value.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [playlist.value[i], playlist.value[j]] = [playlist.value[j], playlist.value[i]];
       }
     };
-
-    watch(currentSongIndex, (newIndex, oldIndex) => {
-      if (newIndex !== oldIndex) {
-        if (newIndex < playlist.value.length) {
-          props.playSong(playlist.value[newIndex].index);
-        }
-      }
-    });
 
     watch(playlist, () => {
       if (currentSongIndex.value >= playlist.value.length) {
@@ -119,7 +121,8 @@ export default {
       savePlaylist,
       shufflePlaylist,
       playNextSong,
-      playPreviousSong
+      playPreviousSong,
+      currentSongIndex
     };
   }
 };
@@ -131,26 +134,38 @@ export default {
   bottom: 100px;
   right: 20px;
   width: 300px;
-  background-color: #333;
-  color: white;
+  background-color: #282828;
+  color: #B3B3B3;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   border-radius: 8px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  font-size: 14px;
 }
 
 .playlist-header {
   background-color: #444;
   padding: 10px;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
 }
 
 .button-group {
   display: flex;
   gap: 5px;
+}
+
+.btn-sm {
+  background-color: #1DB954;
+  border: none;
+  color: white;
+}
+
+.btn-sm:hover {
+  background-color: #1DB954;
+  opacity: 0.8;
 }
 
 .playlist-body {
@@ -176,28 +191,35 @@ ul {
   background-color: #555;
   margin-bottom: 5px;
   border-radius: 4px;
+  font-size: 12px;
 }
 
-input {
-  padding: 5px;
-  margin: 10px 0;
-  border: 1px solid #666;
-  border-radius: 4px;
-  background-color: #444;
-  color: white;
+.truncate {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 180px;
 }
 
-button {
-  padding: 5px 10px;
+.current-song {
+  background-color: #1DB954;
+  color: white; /* Text color for the active highlighted item */
+}
+
+.btn-icon {
+  background: none;
   border: none;
-  background-color: #007bff;
-  color: white;
-  border-radius: 4px;
+  color: #B3B3B3;
   cursor: pointer;
+  margin-left: 5px;
 }
 
-button:hover {
-  background-color: #0056b3;
+.btn-icon-active {
+  color: white;
+}
+
+.btn-icon:hover {
+  color: #1DB954;
 }
 
 .open-popup-button {
@@ -206,21 +228,31 @@ button:hover {
   right: 20px;
   padding: 10px 20px;
   border: none;
-  background-color: #007bff;
+  background-color: #1DB954;
   color: white;
   border-radius: 4px;
   cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 .open-popup-button:hover {
-  background-color: #0056b3;
+  background-color: #1DB954;
 }
 
-.list-item button {
-  background-color: #ff4d4d;
+.playlist-body::-webkit-scrollbar {
+  width: 8px;
 }
 
-.list-item button:hover {
-  background-color: #ff1a1a;
+.btn {
+  color: white !important;
+}
+
+.playlist-body::-webkit-scrollbar-thumb {
+  background-color: #1DB954;
+  border-radius: 4px;
+}
+
+.playlist-body::-webkit-scrollbar-thumb:hover {
+  background-color: #1ed760;
 }
 </style>
