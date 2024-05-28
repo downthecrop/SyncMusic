@@ -9,11 +9,12 @@ from mutagen.id3 import ID3, TIT2, TALB, TPE1, TDRC
 from mutagen.oggopus import OggOpus
 from io import BytesIO
 from urllib.parse import unquote
+import webbrowser
 
 from database import initialize_database, get_all_songs
 from selenium_handler import initialize_driver, gather_all_song_names, get_song_url
 
-
+url = "http://localhost:5000"
 template_dir = os.path.abspath('./templates2')
 app = Flask(__name__, template_folder=template_dir)
 socketio = SocketIO(app, async_mode='threading')
@@ -122,7 +123,7 @@ def serve_file(filename):
 def background_task(song_index):
     def callback(song_url):
         if song_url:
-            song_url = f"http://localhost:5000/downloads/{os.path.basename(song_url)}"
+            song_url = f"{url}/downloads/{os.path.basename(song_url)}"
         socketio.emit('play_song', {'url': song_url})
     
     get_song_url(song_index, callback)
@@ -137,4 +138,5 @@ def handle_play_song(data):
 if __name__ == '__main__':
     initialize_database()
     gather_all_song_names()
+    webbrowser.open(url, new=0, autoraise=True)
     socketio.run(app, debug=False)
