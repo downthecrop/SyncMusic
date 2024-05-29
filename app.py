@@ -84,12 +84,12 @@ def stream():
             if not range_header:
                 headers = {
                     'Content-Type': format,
-                    'X-Metadata-Title': metadata['title'],
-                    'X-Metadata-Album': metadata['album'],
-                    'X-Metadata-Artist': metadata['artist'],
-                    'X-Metadata-Year': metadata['year']
+                    'X-Metadata-Title': metadata['title'].encode('utf-8'),
+                    'X-Metadata-Album': metadata['album'].encode('utf-8'),
+                    'X-Metadata-Artist': metadata['artist'].encode('utf-8'),
+                    'X-Metadata-Year': metadata['year'].encode('utf-8')
                 }
-                return Response(temp_file.getvalue(), headers=headers)
+                return Response(temp_file.getvalue(), headers={k: v.decode('utf-8') for k, v in headers.items()})
             
             start, end = range_header.replace('bytes=', '').split('-')
             start = int(start)
@@ -101,10 +101,10 @@ def stream():
                 'Content-Range': f'bytes {start}-{end}/{total_size}',
                 'Accept-Ranges': 'bytes',
                 'Content-Length': str(length),
-                'X-Metadata-Title': metadata['title'],
-                'X-Metadata-Album': metadata['album'],
-                'X-Metadata-Artist': metadata['artist'],
-                'X-Metadata-Year': metadata['year']
+                'X-Metadata-Title': metadata['title'].encode('utf-8'),
+                'X-Metadata-Album': metadata['album'].encode('utf-8'),
+                'X-Metadata-Artist': metadata['artist'].encode('utf-8'),
+                'X-Metadata-Year': metadata['year'].encode('utf-8')
             }
 
             print("Sending Headers")
